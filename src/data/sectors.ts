@@ -1,0 +1,22 @@
+export const sectors = [
+  'Agriculture and Natural Resource Exploitation',
+  'Industry and Manufacturing',
+  'Construction and Civil Engineering',
+  'Energy and Environment',
+  'Trade and Retail',
+  'Transport and Logistics',
+  'Hospitality, Catering, and Tourism',
+  'Healthcare and Social Services',
+  'Education and Training',
+  'Banking, Finance, and Insurance',
+  'Technology and Digital (IT, AI, Cybersecurity)',
+  'Communication, Marketing, and Advertising',
+  'Arts, Culture, and Entertainment',
+  'Research and Development (R&D)',
+  'Public Administration and Defense',
+  'Consulting, Audit, and Project Management',
+  'Law and Legal Services',
+  'Real Estate and Urban Planning',
+  'Nonprofits and NGOs',
+  'Entrepreneurship and Innovation'
+];
