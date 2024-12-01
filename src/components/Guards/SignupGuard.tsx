@@ -46,11 +46,10 @@ export const SignupGuard: React.FC<SignupGuardProps> = ({ children }) => {
           .single();
 
         if (existingUser) {
-          // L'email existe déjà -> redirection vers login
-          await supabase.auth.signOut();
-          navigate('/login', { 
+          // L'email existe déjà -> redirection vers signup level 2
+          navigate('/signup/level2', { 
             replace: true,
-            state: { message: 'Un compte existe déjà avec cet email. Veuillez vous connecter.' }
+            state: { message: 'Un compte existe déjà avec cet email. Veuillez compléter votre profil.' }
           });
           return;
         }
