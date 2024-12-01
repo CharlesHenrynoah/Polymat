@@ -164,326 +164,314 @@ export const SignupLevel2: React.FC<SignupLevel2Props> = ({ onComplete, onBack }
 
   return (
     <div 
-      className="min-h-screen w-full bg-black relative"
+      className="min-h-screen bg-zinc-900 flex items-center justify-center p-4 sm:p-8"
     >
-      <div 
-        className="absolute inset-0"
-        style={{
-          backgroundImage: 'url(https://images.unsplash.com/photo-1676299081847-824916de030a?auto=format&fit=crop&q=80)',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-        }}
-      />
-      <div className="absolute inset-0 bg-black/90" />
-      
-      <div className="relative min-h-screen w-full flex items-center justify-center py-8">
-        <div className="w-full max-w-2xl p-8">
-          {/* Logo */}
-          <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold text-white font-['Orbitron']">Polymat</h1>
-            <p className="mt-2 text-zinc-400">Complete your profile</p>
+      <div className="w-full max-w-3xl space-y-8 bg-zinc-900/50 backdrop-blur-xl rounded-2xl p-6 sm:p-8 border border-zinc-800">
+        {/* Logo */}
+        <div className="text-center">
+          <h1 className="text-4xl font-bold text-white font-['Orbitron']">Polymat</h1>
+          <p className="mt-2 text-lg text-zinc-400">Complete your profile</p>
+        </div>
+
+        {/* Progress Indicator */}
+        <div className="flex items-center justify-center mb-8">
+          <div className="flex items-center space-x-2">
+            <div className="w-8 h-8 rounded-full bg-white text-gray-900 flex items-center justify-center text-sm border border-gray-200">✓</div>
+            <div className="w-12 h-0.5 bg-gray-200" />
+            <div className="w-8 h-8 rounded-full bg-white text-gray-900 flex items-center justify-center text-sm border border-gray-200">2</div>
           </div>
+        </div>
 
-          {/* Progress Indicator */}
-          <div className="flex items-center justify-center mb-8">
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center text-sm">✓</div>
-              <div className="w-12 h-0.5 bg-orange-500" />
-              <div className="w-8 h-8 rounded-full bg-orange-500 text-white flex items-center justify-center text-sm">2</div>
-            </div>
-          </div>
-
-          {/* Profile Form */}
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-6 bg-zinc-900/50 backdrop-blur-md p-8 rounded-2xl border border-zinc-800/50 shadow-xl">
-              {/* Photo Upload */}
-              <div className="flex justify-center">
-                <div className="relative">
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handlePhotoChange}
-                    accept="image/*"
-                    className="hidden"
-                  />
-                  <div 
-                    onClick={() => fileInputRef.current?.click()}
-                    className="w-32 h-32 rounded-full bg-zinc-800 border-2 border-dashed border-zinc-700 flex items-center justify-center cursor-pointer hover:bg-zinc-700/50 transition-colors group"
-                  >
-                    {formData.photoPreview ? (
-                      <img
-                        src={formData.photoPreview}
-                        alt="Profile preview"
-                        className="w-full h-full rounded-full object-cover"
-                      />
-                    ) : (
-                      <Upload className="w-8 h-8 text-zinc-500 group-hover:text-orange-500 transition-colors" />
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Basic Information */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-zinc-300 mb-1.5">
-                    Username *
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={formData.username}
-                      onChange={(e) => handleChange('username', e.target.value)}
-                      className={`w-full px-4 py-2.5 bg-zinc-800/50 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent ${
-                        errors.username ? 'border-red-500' : 'border-zinc-700/50'
-                      }`}
-                      placeholder="Choose a username"
+        {/* Profile Form */}
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-zinc-900/50 backdrop-blur-md p-6 sm:p-8 rounded-2xl border border-zinc-800">
+            {/* Photo Upload */}
+            <div className="flex justify-center">
+              <div className="relative">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handlePhotoChange}
+                  accept="image/*"
+                  className="hidden"
+                />
+                <div 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-32 h-32 rounded-full bg-gray-200 border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:bg-gray-300/50 transition-colors group"
+                >
+                  {formData.photoPreview ? (
+                    <img
+                      src={formData.photoPreview}
+                      alt="Profile preview"
+                      className="w-full h-full rounded-full object-cover"
                     />
-                    {isCheckingUsername && (
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                        <div className="w-5 h-5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
-                      </div>
-                    )}
-                  </div>
-                  {errors.username && (
-                    <p className="mt-1 text-sm text-red-500">{errors.username}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-zinc-300 mb-1.5">
-                    First Name *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.firstName}
-                    onChange={(e) => handleChange('firstName', e.target.value)}
-                    className={`w-full px-4 py-2.5 bg-zinc-800/50 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent ${
-                      errors.firstName ? 'border-red-500' : 'border-zinc-700/50'
-                    }`}
-                    placeholder="Enter your first name"
-                  />
-                  {errors.firstName && (
-                    <p className="mt-1 text-sm text-red-500">{errors.firstName}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-zinc-300 mb-1.5">
-                    Last Name *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.lastName}
-                    onChange={(e) => handleChange('lastName', e.target.value)}
-                    className={`w-full px-4 py-2.5 bg-zinc-800/50 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent ${
-                      errors.lastName ? 'border-red-500' : 'border-zinc-700/50'
-                    }`}
-                    placeholder="Enter your last name"
-                  />
-                  {errors.lastName && (
-                    <p className="mt-1 text-sm text-red-500">{errors.lastName}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-zinc-300 mb-1.5">
-                    Gender *
-                  </label>
-                  <select
-                    value={formData.gender}
-                    onChange={(e) => handleChange('gender', e.target.value)}
-                    className={`w-full px-4 py-2.5 bg-zinc-800/50 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent ${
-                      errors.gender ? 'border-red-500' : 'border-zinc-700/50'
-                    }`}
-                  >
-                    <option value="">Select gender</option>
-                    {genderOptions.map(option => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                  {errors.gender && (
-                    <p className="mt-1 text-sm text-red-500">{errors.gender}</p>
+                  ) : (
+                    <Upload className="w-8 h-8 text-gray-500 group-hover:text-gray-700 transition-colors" />
                   )}
                 </div>
               </div>
+            </div>
 
-              {/* Description */}
+            {/* Basic Information */}
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-zinc-300 mb-1.5">
-                  Short Description *
+                  Username *
                 </label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => handleChange('description', e.target.value)}
-                  className={`w-full px-4 py-2.5 bg-zinc-800/50 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none ${
-                    errors.description ? 'border-red-500' : 'border-zinc-700/50'
-                  }`}
-                  rows={3}
-                  placeholder="Tell us about yourself"
-                  maxLength={500}
-                />
-                <div className="mt-1 flex justify-between text-xs text-zinc-500">
-                  <span>{500 - formData.description.length} characters remaining</span>
-                  {errors.description && (
-                    <span className="text-red-500">{errors.description}</span>
-                  )}
-                </div>
-              </div>
-
-              {/* Industry & Birth Info */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-zinc-300 mb-1.5">
-                    Industry *
-                  </label>
-                  <select
-                    value={formData.sector}
-                    onChange={(e) => handleChange('sector', e.target.value)}
-                    className="w-full px-4 py-2.5 bg-zinc-800/50 border border-zinc-700/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  >
-                    {sectors.map(sector => (
-                      <option key={sector} value={sector}>
-                        {sector}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-zinc-300 mb-1.5">
-                    Birth Date *
-                  </label>
+                <div className="relative">
                   <input
-                    type="date"
-                    value={formData.birthDate}
-                    onChange={(e) => handleChange('birthDate', e.target.value)}
-                    className={`w-full px-4 py-2.5 bg-zinc-800/50 border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent ${
-                      errors.birthDate ? 'border-red-500' : 'border-zinc-700/50'
+                    type="text"
+                    value={formData.username}
+                    onChange={(e) => handleChange('username', e.target.value)}
+                    className={`w-full px-4 py-2.5 bg-zinc-800/50 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent ${
+                      errors.username ? 'border-red-500' : 'border-zinc-700/50'
                     }`}
+                    placeholder="Choose a username"
                   />
-                  {errors.birthDate && (
-                    <p className="mt-1 text-sm text-red-500">{errors.birthDate}</p>
+                  {isCheckingUsername && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                    </div>
                   )}
                 </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-zinc-300 mb-1.5">
-                    Birth Place *
-                  </label>
-                  <select
-                    value={formData.birthPlace}
-                    onChange={(e) => handleChange('birthPlace', e.target.value)}
-                    className="w-full px-4 py-2.5 bg-zinc-800/50 border border-zinc-700/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  >
-                    {Object.entries(birthPlaces).map(([continent, places]) => (
-                      <optgroup key={continent} label={continent.toUpperCase()}>
-                        {places.map(place => (
-                          <option key={place} value={place}>
-                            {place}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-zinc-300 mb-1.5">
-                    Phone Number *
-                  </label>
-                  <div className="flex gap-2">
-                    <div className="w-32">
-                      <select
-                        value={formData.countryCode}
-                        onChange={(e) => handleChange('countryCode', e.target.value)}
-                        className="w-full px-4 py-2.5 bg-zinc-800/50 border border-zinc-700/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent appearance-none"
-                      >
-                        {countryCodes.map(({ code, country }) => (
-                          <option key={code} value={code}>
-                            {code} ({country})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="flex-1">
-                      <input
-                        type="tel"
-                        value={formData.phoneNumber}
-                        onChange={(e) => handleChange('phoneNumber', e.target.value)}
-                        className={`w-full px-4 py-2.5 bg-zinc-800/50 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent ${
-                          errors.phoneNumber ? 'border-red-500' : 'border-zinc-700/50'
-                        }`}
-                        placeholder="Phone number"
-                      />
-                    </div>
-                  </div>
-                  {errors.phoneNumber && (
-                    <p className="mt-1 text-sm text-red-500">{errors.phoneNumber}</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Terms and Conditions */}
-              <div className="space-y-4">
-                <label className="flex items-start gap-3 cursor-pointer group">
-                  <div className="relative flex items-start">
-                    <div className="bg-zinc-800/50 border border-zinc-700/50 w-6 h-6 rounded transition-colors group-hover:border-orange-500">
-                      <input
-                        type="checkbox"
-                        className="absolute w-full h-full opacity-0 cursor-pointer"
-                        checked={formData.acceptTerms}
-                        onChange={(e) => handleChange('acceptTerms', e.target.checked)}
-                      />
-                      {formData.acceptTerms && (
-                        <svg className="w-6 h-6 text-orange-500" viewBox="0 0 24 24">
-                          <path
-                            fill="currentColor"
-                            d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"
-                          />
-                        </svg>
-                      )}
-                    </div>
-                  </div>
-                  <span className="text-sm text-zinc-300">
-                    I accept the{' '}
-                    <a href="#" className="text-orange-500 hover:text-orange-400 transition-colors">
-                      Terms of Service
-                    </a>{' '}
-                    and{' '}
-                    <a href="#" className="text-orange-500 hover:text-orange-400 transition-colors">
-                      Privacy Policy
-                    </a>
-                  </span>
-                </label>
-                {errors.terms && (
-                  <p className="text-sm text-red-500">{errors.terms}</p>
+                {errors.username && (
+                  <p className="mt-1 text-sm text-red-500">{errors.username}</p>
                 )}
               </div>
 
-              {/* Navigation Buttons */}
-              <div className="flex items-center justify-between pt-4 border-t border-zinc-800/50">
-                <button
-                  type="button"
-                  onClick={onBack}
-                  className="px-6 py-2 text-zinc-300 hover:text-white transition-colors"
+              <div>
+                <label className="block text-sm font-medium text-zinc-300 mb-1.5">
+                  First Name *
+                </label>
+                <input
+                  type="text"
+                  value={formData.firstName}
+                  onChange={(e) => handleChange('firstName', e.target.value)}
+                  className={`w-full px-4 py-2.5 bg-zinc-800/50 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent ${
+                    errors.firstName ? 'border-red-500' : 'border-zinc-700/50'
+                  }`}
+                  placeholder="Enter your first name"
+                />
+                {errors.firstName && (
+                  <p className="mt-1 text-sm text-red-500">{errors.firstName}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-zinc-300 mb-1.5">
+                  Last Name *
+                </label>
+                <input
+                  type="text"
+                  value={formData.lastName}
+                  onChange={(e) => handleChange('lastName', e.target.value)}
+                  className={`w-full px-4 py-2.5 bg-zinc-800/50 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent ${
+                    errors.lastName ? 'border-red-500' : 'border-zinc-700/50'
+                  }`}
+                  placeholder="Enter your last name"
+                />
+                {errors.lastName && (
+                  <p className="mt-1 text-sm text-red-500">{errors.lastName}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-zinc-300 mb-1.5">
+                  Gender *
+                </label>
+                <select
+                  value={formData.gender}
+                  onChange={(e) => handleChange('gender', e.target.value)}
+                  className={`w-full px-4 py-2.5 bg-zinc-800/50 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent ${
+                    errors.gender ? 'border-red-500' : 'border-zinc-700/50'
+                  }`}
                 >
-                  Back
-                </button>
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="flex items-center justify-center gap-2 px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-zinc-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <span>Complete Registration</span>
-                  <ArrowRight className="w-5 h-5" />
-                </button>
+                  <option value="">Select gender</option>
+                  {genderOptions.map(option => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                {errors.gender && (
+                  <p className="mt-1 text-sm text-red-500">{errors.gender}</p>
+                )}
               </div>
             </div>
-          </form>
-        </div>
+
+            {/* Description */}
+            <div>
+              <label className="block text-sm font-medium text-zinc-300 mb-1.5">
+                Short Description *
+              </label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => handleChange('description', e.target.value)}
+                className={`w-full px-4 py-2.5 bg-zinc-800/50 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none ${
+                  errors.description ? 'border-red-500' : 'border-zinc-700/50'
+                }`}
+                rows={3}
+                placeholder="Tell us about yourself"
+                maxLength={500}
+              />
+              <div className="mt-1 flex justify-between text-xs text-gray-500">
+                <span>{500 - formData.description.length} characters remaining</span>
+                {errors.description && (
+                  <span className="text-red-500">{errors.description}</span>
+                )}
+              </div>
+            </div>
+
+            {/* Industry & Birth Info */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-zinc-300 mb-1.5">
+                  Industry *
+                </label>
+                <select
+                  value={formData.sector}
+                  onChange={(e) => handleChange('sector', e.target.value)}
+                  className="w-full px-4 py-2.5 bg-zinc-800/50 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                >
+                  {sectors.map(sector => (
+                    <option key={sector} value={sector}>
+                      {sector}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-zinc-300 mb-1.5">
+                  Birth Date *
+                </label>
+                <input
+                  type="date"
+                  value={formData.birthDate}
+                  onChange={(e) => handleChange('birthDate', e.target.value)}
+                  className={`w-full px-4 py-2.5 bg-zinc-800/50 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent ${
+                    errors.birthDate ? 'border-red-500' : 'border-zinc-700/50'
+                  }`}
+                />
+                {errors.birthDate && (
+                  <p className="mt-1 text-sm text-red-500">{errors.birthDate}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-zinc-300 mb-1.5">
+                  Birth Place *
+                </label>
+                <select
+                  value={formData.birthPlace}
+                  onChange={(e) => handleChange('birthPlace', e.target.value)}
+                  className="w-full px-4 py-2.5 bg-zinc-800/50 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                >
+                  {Object.entries(birthPlaces).map(([continent, places]) => (
+                    <optgroup key={continent} label={continent.toUpperCase()}>
+                      {places.map(place => (
+                        <option key={place} value={place}>
+                          {place}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-zinc-300 mb-1.5">
+                  Phone Number *
+                </label>
+                <div className="flex gap-2">
+                  <div className="w-32">
+                    <select
+                      value={formData.countryCode}
+                      onChange={(e) => handleChange('countryCode', e.target.value)}
+                      className="w-full px-4 py-2.5 bg-zinc-800/50 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    >
+                      {countryCodes.map(({ code, country }) => (
+                        <option key={code} value={code}>
+                          {code} ({country})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex-1">
+                    <input
+                      type="tel"
+                      value={formData.phoneNumber}
+                      onChange={(e) => handleChange('phoneNumber', e.target.value)}
+                      className={`w-full px-4 py-2.5 bg-zinc-800/50 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent ${
+                        errors.phoneNumber ? 'border-red-500' : 'border-zinc-700/50'
+                      }`}
+                      placeholder="Phone number"
+                    />
+                  </div>
+                </div>
+                {errors.phoneNumber && (
+                  <p className="mt-1 text-sm text-red-500">{errors.phoneNumber}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Terms and Conditions */}
+            <div className="space-y-4">
+              <label className="flex items-start gap-3 cursor-pointer group">
+                <div className="relative flex items-start">
+                  <div className="bg-white border border-gray-200 w-6 h-6 rounded transition-colors group-hover:border-gray-400">
+                    <input
+                      type="checkbox"
+                      className="absolute w-full h-full opacity-0 cursor-pointer"
+                      checked={formData.acceptTerms}
+                      onChange={(e) => handleChange('acceptTerms', e.target.checked)}
+                    />
+                    {formData.acceptTerms && (
+                      <svg className="w-6 h-6 text-gray-900" viewBox="0 0 24 24">
+                        <path
+                          fill="currentColor"
+                          d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"
+                        />
+                      </svg>
+                    )}
+                  </div>
+                </div>
+                <span className="text-sm text-zinc-400 hover:text-zinc-300 transition-colors font-medium">
+                  I accept the{' '}
+                  <a href="#" className="text-zinc-400 hover:text-zinc-300 transition-colors font-medium">
+                    Terms of Service
+                  </a>{' '}
+                  and{' '}
+                  <a href="#" className="text-zinc-400 hover:text-zinc-300 transition-colors font-medium">
+                    Privacy Policy
+                  </a>
+                </span>
+              </label>
+              {errors.terms && (
+                <p className="text-sm text-red-500">{errors.terms}</p>
+              )}
+            </div>
+
+            {/* Navigation Buttons */}
+            <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+              <button
+                type="button"
+                onClick={onBack}
+                className="px-6 py-2 text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                Back
+              </button>
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="flex items-center justify-center gap-2 px-6 py-2 bg-white hover:bg-gray-50 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-zinc-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span>Complete Registration</span>
+                <ArrowRight className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        </form>
       </div>
     </div>
   );
