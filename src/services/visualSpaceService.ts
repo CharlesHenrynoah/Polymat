@@ -11,7 +11,7 @@ export const visualSpaceService = {
 
     if (error) {
       console.error('Error fetching visual spaces:', error);
-      return [];
+      throw new Error('Failed to fetch visual spaces');
     }
 
     return data.map(space => ({
@@ -34,6 +34,7 @@ export const visualSpaceService = {
 
     if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
       console.error('Error checking title:', error);
+      throw new Error('Failed to check title');
     }
 
     return !!data;
@@ -76,7 +77,7 @@ export const visualSpaceService = {
 
     if (error) {
       console.error('Error creating visual space:', error);
-      return null;
+      throw new Error('Failed to create visual space');
     }
 
     return {
@@ -97,6 +98,7 @@ export const visualSpaceService = {
 
     if (error) {
       console.error('Error updating last accessed:', error);
+      throw new Error('Failed to update last accessed');
     }
   },
 
@@ -130,7 +132,7 @@ export const visualSpaceService = {
 
     if (error) {
       console.error('Error updating visual space:', error);
-      return false;
+      throw new Error('Failed to update visual space');
     }
 
     return true;
@@ -144,7 +146,7 @@ export const visualSpaceService = {
 
     if (error) {
       console.error('Error deleting visual space:', error);
-      return false;
+      throw new Error('Failed to delete visual space');
     }
 
     return true;
