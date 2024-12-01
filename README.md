@@ -1,2 +1,1 @@
 # Polymat
-AI distribution platform
