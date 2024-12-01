@@ -1,16 +1,51 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Eye, EyeOff, ArrowRight } from 'lucide-react';
+import { FcGoogle } from 'react-icons/fc';
 
 export const Login: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rememberMe, setRememberMe] = useState(false);
+
+  // Récupérer le message de redirection
+  useEffect(() => {
+    const state = location.state as { message?: string };
+    if (state?.message) {
+      setError(state.message);
+    }
+  }, [location]);
+
+  const handleGoogleLogin = async () => {
+    try {
+      setError(null);
+      setIsLoading(true);
+      
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          queryParams: {
+            prompt: 'select_account',
+            access_type: 'offline'
+          }
+        }
+      });
+
+      if (error) throw error;
+      
+    } catch (error: any) {
+      console.error('Error with Google login:', error);
+      setError('Une erreur est survenue lors de la connexion avec Google');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,6 +99,36 @@ export const Login: React.FC = () => {
           <p className="mt-2 text-zinc-400">Sign in to your account</p>
         </div>
 
+        {/* Google Login Button */}
+        <div className="mb-6">
+          <button
+            type="button"
+            onClick={handleGoogleLogin}
+            disabled={isLoading}
+            className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white hover:bg-zinc-100 text-black rounded-lg font-medium transition-colors"
+          >
+            <FcGoogle className="w-5 h-5" />
+            <span>Continue with Google</span>
+          </button>
+        </div>
+
+        {/* Separator */}
+        <div className="relative mb-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-zinc-700"></div>
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-2 bg-black text-zinc-400">Or continue with</span>
+          </div>
+        </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="mb-4 p-3 rounded bg-red-500/10 border border-red-500/20 text-red-500 text-sm">
+            {error}
+          </div>
+        )}
+
         {/* Login Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-4 bg-zinc-900/50 backdrop-blur-md p-8 rounded-2xl border border-zinc-800/50 shadow-xl">
@@ -101,9 +166,13 @@ export const Login: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-orange-500 transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-300"
                 >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  {showPassword ? (
+                    <EyeOff className="h-5 w-5" />
+                  ) : (
+                    <Eye className="h-5 w-5" />
+                  )}
                 </button>
               </div>
             </div>
@@ -131,14 +200,6 @@ export const Login: React.FC = () => {
                 Forgot password?
               </button>
             </div>
-
-            {/* Error Message */}
-            {error && (
-              <p className="text-red-500 text-sm mt-2 flex items-center gap-1">
-                <span className="inline-block w-1 h-1 rounded-full bg-red-500 animate-pulse" />
-                {error}
-              </p>
-            )}
 
             {/* Submit Button */}
             <button

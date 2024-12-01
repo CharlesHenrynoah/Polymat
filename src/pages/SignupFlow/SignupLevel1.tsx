@@ -78,22 +78,24 @@ export const SignupLevel1: React.FC<SignupLevel1Props> = ({ onNext, onBack }) =>
   const handleGoogleSignup = async () => {
     try {
       setIsLoading(true);
+      setErrors({});
 
-      // Initiate Google OAuth flow
+      // Vérifier d'abord si l'utilisateur existe déjà
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/signup/level2`,
           queryParams: {
-            access_type: 'offline',
-            prompt: 'select_account'
+            prompt: 'select_account',
+            access_type: 'offline'
           }
         }
       });
 
       if (error) throw error;
 
-    } catch (error) {
+      // La redirection sera gérée par SignupGuard en fonction de l'existence du profil
+
+    } catch (error: any) {
       console.error('Error with Google signup:', error);
       setErrors({ submit: 'Une erreur est survenue lors de la connexion avec Google' });
     } finally {
@@ -102,7 +104,7 @@ export const SignupLevel1: React.FC<SignupLevel1Props> = ({ onNext, onBack }) =>
   };
 
   return (
-    <div 
+    <div
       className="min-h-screen flex items-center justify-center bg-black"
       style={{
         backgroundImage: 'url(https://images.unsplash.com/photo-1676299081847-824916de030a?auto=format&fit=crop&q=80)',
@@ -111,7 +113,7 @@ export const SignupLevel1: React.FC<SignupLevel1Props> = ({ onNext, onBack }) =>
       }}
     >
       <div className="absolute inset-0 bg-black/90" />
-      
+
       <div className="relative w-full max-w-md p-8">
         {/* Logo */}
         <div className="text-center mb-8">
@@ -144,9 +146,8 @@ export const SignupLevel1: React.FC<SignupLevel1Props> = ({ onNext, onBack }) =>
                   setEmail(e.target.value);
                   setErrors({ ...errors, email: '' });
                 }}
-                className={`w-full px-4 py-2.5 bg-zinc-800/50 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent ${
-                  errors.email ? 'border-red-500' : 'border-zinc-700/50'
-                }`}
+                className={`w-full px-4 py-2.5 bg-zinc-800/50 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent ${errors.email ? 'border-red-500' : 'border-zinc-700/50'
+                  }`}
                 placeholder="Enter your email"
               />
               {errors.email && (
@@ -168,9 +169,8 @@ export const SignupLevel1: React.FC<SignupLevel1Props> = ({ onNext, onBack }) =>
                     setPassword(e.target.value);
                     setErrors({ ...errors, password: '' });
                   }}
-                  className={`w-full px-4 py-2.5 bg-zinc-800/50 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent pr-10 ${
-                    errors.password ? 'border-red-500' : 'border-zinc-700/50'
-                  }`}
+                  className={`w-full px-4 py-2.5 bg-zinc-800/50 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent pr-10 ${errors.password ? 'border-red-500' : 'border-zinc-700/50'
+                    }`}
                   placeholder="Create a password"
                 />
                 <button
@@ -221,9 +221,8 @@ export const SignupLevel1: React.FC<SignupLevel1Props> = ({ onNext, onBack }) =>
                     setConfirmPassword(e.target.value);
                     setErrors({ ...errors, confirmPassword: '' });
                   }}
-                  className={`w-full px-4 py-2.5 bg-zinc-800/50 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent pr-10 ${
-                    errors.confirmPassword ? 'border-red-500' : 'border-zinc-700/50'
-                  }`}
+                  className={`w-full px-4 py-2.5 bg-zinc-800/50 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent pr-10 ${errors.confirmPassword ? 'border-red-500' : 'border-zinc-700/50'
+                    }`}
                   placeholder="Confirm your password"
                 />
                 <button
