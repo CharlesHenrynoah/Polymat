@@ -3,11 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Eye, EyeOff, ArrowRight } from 'lucide-react';
 
-interface LoginProps {
-  onLogin: (email: string, password: string) => void;
-}
-
-export const Login: React.FC<LoginProps> = () => {
+export const Login: React.FC = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -157,7 +153,11 @@ export const Login: React.FC<LoginProps> = () => {
             {/* Sign Up Link */}
             <div className="pt-4 text-center text-sm text-zinc-400 border-t border-zinc-800/50">
               Don't have an account?{' '}
-              <button type="button" className="text-orange-500 hover:text-orange-400 transition-colors font-medium">
+              <button
+                type="button"
+                onClick={() => navigate('/signup')}
+                className="text-orange-500 hover:text-orange-400 transition-colors font-medium"
+              >
                 Create one now
               </button>
             </div>

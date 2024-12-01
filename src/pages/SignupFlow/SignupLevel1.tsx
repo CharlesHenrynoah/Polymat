@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
-import { Eye, EyeOff, ArrowRight, Mail } from 'lucide-react';
+import { Eye, EyeOff, ArrowRight } from 'lucide-react';
+import { FcGoogle } from 'react-icons/fc';
+import { supabase } from '../../lib/supabase';
+import { useNavigate } from 'react-router-dom';
 
 interface SignupLevel1Props {
   onNext: (data: {
@@ -18,6 +21,7 @@ export const SignupLevel1: React.FC<SignupLevel1Props> = ({ onNext, onBack }) =>
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
 
   const validatePassword = (pass: string) => {
     const requirements = {
@@ -28,61 +32,73 @@ export const SignupLevel1: React.FC<SignupLevel1Props> = ({ onNext, onBack }) =>
       special: /[!@#$%^&*(),.?":{}|<>]/.test(pass),
     };
 
-    return requirements;
+    return Object.values(requirements).every(Boolean);
+  };
+
+  const validateEmail = (email: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    setErrors({});
+    let hasErrors = false;
     const newErrors: Record<string, string> = {};
 
-    // Email validation
     if (!email) {
       newErrors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = 'Please enter a valid email address';
+      hasErrors = true;
+    } else if (!validateEmail(email)) {
+      newErrors.email = 'Please enter a valid email';
+      hasErrors = true;
     }
 
-    // Password validation
-    const passwordReqs = validatePassword(password);
     if (!password) {
       newErrors.password = 'Password is required';
-    } else if (!Object.values(passwordReqs).every(Boolean)) {
-      newErrors.password = 'Password does not meet security requirements';
+      hasErrors = true;
+    } else if (!validatePassword(password)) {
+      newErrors.password =
+        'Password must be at least 8 characters and contain uppercase, lowercase, number and special character';
+      hasErrors = true;
     }
 
-    // Confirm password validation
     if (password !== confirmPassword) {
       newErrors.confirmPassword = 'Passwords do not match';
+      hasErrors = true;
     }
 
-    if (Object.keys(newErrors).length > 0) {
+    if (hasErrors) {
       setErrors(newErrors);
-      setIsLoading(false);
       return;
     }
 
-    try {
-      // Simulate API check for existing email
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // For demo, randomly simulate existing email
-      if (Math.random() > 0.7) {
-        setErrors({ email: 'This email is already registered. Please try another or sign in.' });
-        setIsLoading(false);
-        return;
-      }
+    onNext({ email, password });
+  };
 
-      onNext({ email, password });
+  const handleGoogleSignup = async () => {
+    try {
+      setIsLoading(true);
+
+      // Initiate Google OAuth flow
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/signup/level2`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'select_account'
+          }
+        }
+      });
+
+      if (error) throw error;
+
     } catch (error) {
-      setErrors({ submit: 'An error occurred. Please try again.' });
+      console.error('Error with Google signup:', error);
+      setErrors({ submit: 'Une erreur est survenue lors de la connexion avec Google' });
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleGoogleSignup = () => {
-    onNext({ email: '', password: '', googleAuth: true });
   };
 
   return (
@@ -180,6 +196,9 @@ export const SignupLevel1: React.FC<SignupLevel1Props> = ({ onNext, onBack }) =>
                     <div className={validatePassword(password).number ? 'text-green-500' : 'text-zinc-500'}>
                       Number
                     </div>
+                    <div className={validatePassword(password).special ? 'text-green-500' : 'text-zinc-500'}>
+                      Special
+                    </div>
                   </div>
                 </div>
               )}
@@ -244,10 +263,11 @@ export const SignupLevel1: React.FC<SignupLevel1Props> = ({ onNext, onBack }) =>
             <button
               type="button"
               onClick={handleGoogleSignup}
-              className="w-full flex items-center justify-center gap-3 px-4 py-2.5 bg-zinc-800/50 text-white rounded-lg hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-zinc-900 transition-colors border border-zinc-700/50"
+              disabled={isLoading}
+              className="w-full flex items-center justify-center gap-3 px-4 py-2.5 bg-zinc-800/50 text-white rounded-lg hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-zinc-900 transition-colors border border-zinc-700/50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Mail className="w-5 h-5 text-orange-500" />
-              <span>Google</span>
+              <FcGoogle className="w-5 h-5" />
+              <span>Continue with Google</span>
             </button>
 
             {/* Sign In Link */}
