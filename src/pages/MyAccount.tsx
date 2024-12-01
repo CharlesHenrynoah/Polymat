@@ -123,11 +123,30 @@ export const MyAccount: React.FC<MyAccountProps> = ({
     onBack();
   };
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const convertToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          resolve(reader.result);
+        } else {
+          reject(new Error('Failed to convert image to base64'));
+        }
+      };
+      reader.onerror = (error) => reject(error);
+    });
+  };
+
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      const imageUrl = URL.createObjectURL(file);
-      setFormData(prev => ({ ...prev, profileImage: imageUrl }));
+      try {
+        const base64String = await convertToBase64(file);
+        setFormData(prev => ({ ...prev, profileImage: base64String }));
+      } catch (error) {
+        console.error('Error converting image to base64:', error);
+      }
     }
   };
 

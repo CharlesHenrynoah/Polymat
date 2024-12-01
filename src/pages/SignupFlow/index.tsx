@@ -36,29 +36,68 @@ export const SignupFlow: React.FC<SignupFlowProps> = ({ startAtLevel2 = false })
   const handleLevel2Complete = async (data: any) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        console.error('No authenticated user found');
+        return;
+      }
 
-      const { error: updateError } = await supabase
+      // Check if username exists for other users
+      const { data: existingUser, error: checkError } = await supabase
         .from('users')
-        .update({
-          username: data.username,
-          first_name: data.firstName,
-          last_name: data.lastName,
-          description: data.description,
-          sector: data.sector,
-          gender: data.gender,
-          birth_date: data.birthDate,
-          birth_place: data.birthPlace,
-          phone_number: data.phoneNumber,
-          country_code: data.countryCode,
-          completed_signup: true,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', user.id);
+        .select('username')
+        .eq('username', data.username)
+        .neq('id', user.id)
+        .maybeSingle();
 
-      if (updateError) throw updateError;
+      if (existingUser) {
+        console.error('Username already exists');
+        return;
+      }
 
-      // Redirection vers l'espace visuel
+      // Convert photo to base64 if provided
+      let base64Image = null;
+      if (data.photo) {
+        const reader = new FileReader();
+        base64Image = await new Promise((resolve) => {
+          reader.onload = (e) => resolve(e.target?.result);
+          reader.readAsDataURL(data.photo);
+        });
+      }
+
+      // Prepare user data
+      const userData = {
+        id: user.id,
+        email: user.email,
+        username: data.username,
+        first_name: data.firstName,
+        last_name: data.lastName,
+        description: data.description,
+        sector: data.sector,
+        gender: data.gender,
+        birth_date: data.birthDate,
+        birth_place: data.birthPlace,
+        phone_number: data.phoneNumber,
+        country_code: data.countryCode,
+        profile_image: base64Image,
+        updated_at: new Date().toISOString(),
+        is_active: true,
+        role: 'user'
+      };
+
+      // Update or create user profile using upsert
+      const { error: upsertError } = await supabase
+        .from('users')
+        .upsert(userData, {
+          onConflict: 'id',
+          ignoreDuplicates: false
+        });
+
+      if (upsertError) {
+        console.error('User update error:', upsertError);
+        throw upsertError;
+      }
+
+      // Redirect to the user's space
       navigate(`/${data.username}`, { replace: true });
     } catch (error: any) {
       console.error('Profile update error:', error.message);

@@ -27,19 +27,23 @@ export const Login: React.FC = () => {
     try {
       setError(null);
       setIsLoading(true);
-      
+
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           queryParams: {
             prompt: 'select_account',
             access_type: 'offline'
-          }
+          },
+          redirectTo: window.location.origin
         }
       });
 
       if (error) throw error;
-      
+
+      // La redirection vers Google va se produire automatiquement
+      // Le reste de la logique sera géré par un useEffect qui écoutera l'événement de connexion
+
     } catch (error: any) {
       console.error('Error with Google login:', error);
       setError('Une erreur est survenue lors de la connexion avec Google');
@@ -47,6 +51,61 @@ export const Login: React.FC = () => {
       setIsLoading(false);
     }
   };
+
+  // Écouter les changements d'état d'authentification
+  useEffect(() => {
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        try {
+          const { user } = session;
+
+          // Récupérer le VisualSpace par défaut
+          const { data: visualSpace, error: visualSpaceError } = await supabase
+            .from('visual_spaces')
+            .select('id')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: true })
+            .limit(1)
+            .single();
+
+          if (visualSpaceError && visualSpaceError.code !== 'PGRST116') {
+            throw visualSpaceError;
+          }
+
+          // Si aucun VisualSpace n'existe, en créer un par défaut
+          if (!visualSpace) {
+            const { data: newSpace, error: createError } = await supabase
+              .from('visual_spaces')
+              .insert({
+                title: 'My First Space',
+                description: 'My default visual space',
+                user_id: user.id,
+                created_at: new Date().toISOString(),
+                last_modified: new Date().toISOString(),
+                last_accessed: new Date().toISOString()
+              })
+              .select()
+              .single();
+
+            if (createError) throw createError;
+            
+            // Rediriger vers le nouveau VisualSpace
+            navigate(`/space/${newSpace.id}`);
+          } else {
+            // Rediriger vers le VisualSpace existant
+            navigate(`/space/${visualSpace.id}`);
+          }
+        } catch (error) {
+          console.error('Error after Google login:', error);
+          setError('Une erreur est survenue lors de la finalisation de la connexion');
+        }
+      }
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, [navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,20 +121,44 @@ export const Login: React.FC = () => {
       if (signInError) throw signInError;
       if (!user) throw new Error('No user returned from login');
 
-      // Récupérer le profil de l'utilisateur
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('username')
-        .eq('id', user.id)
+      // Récupérer le VisualSpace par défaut de l'utilisateur
+      const { data: visualSpace, error: visualSpaceError } = await supabase
+        .from('visual_spaces')
+        .select('id')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: true })
+        .limit(1)
         .single();
 
-      if (profile) {
-        // Rediriger vers la page de l'utilisateur
-        navigate(`/${profile.username}`);
+      if (visualSpaceError && visualSpaceError.code !== 'PGRST116') {
+        throw visualSpaceError;
+      }
+
+      // Si aucun VisualSpace n'existe, en créer un par défaut
+      if (!visualSpace) {
+        const { data: newSpace, error: createError } = await supabase
+          .from('visual_spaces')
+          .insert({
+            title: 'My First Space',
+            description: 'My default visual space',
+            user_id: user.id,
+            created_at: new Date().toISOString(),
+            last_modified: new Date().toISOString(),
+            last_accessed: new Date().toISOString()
+          })
+          .select()
+          .single();
+
+        if (createError) throw createError;
+        
+        // Rediriger vers le nouveau VisualSpace
+        navigate(`/space/${newSpace.id}`);
       } else {
-        throw new Error('User profile not found');
+        // Rediriger vers le VisualSpace existant
+        navigate(`/space/${visualSpace.id}`);
       }
     } catch (err) {
+      console.error('Login error:', err);
       setError(err instanceof Error ? err.message : 'An error occurred during login');
     } finally {
       setIsLoading(false);
@@ -83,7 +166,7 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <div 
+    <div
       className="min-h-screen flex items-center justify-center bg-black relative overflow-y-auto scrollbar-hide"
       style={{
         backgroundImage: 'url(/src/bg/eso1509a-1.jpg)',
@@ -92,7 +175,7 @@ export const Login: React.FC = () => {
       }}
     >
       <div className="absolute inset-0 bg-black/90" />
-      
+
       <div className="relative w-full max-w-md p-8">
         {/* Logo */}
         <div className="text-center mb-8">
@@ -143,9 +226,8 @@ export const Login: React.FC = () => {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className={`w-full px-4 py-2.5 bg-zinc-800/50 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent ${
-                  error ? 'border-red-500' : 'border-zinc-700/50'
-                }`}
+                className={`w-full px-4 py-2.5 bg-zinc-800/50 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent ${error ? 'border-red-500' : 'border-zinc-700/50'
+                  }`}
                 placeholder="Enter your email"
                 required
               />
@@ -162,9 +244,8 @@ export const Login: React.FC = () => {
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className={`w-full px-4 py-2.5 bg-zinc-800/50 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent pr-10 ${
-                    error ? 'border-red-500' : 'border-zinc-700/50'
-                  }`}
+                  className={`w-full px-4 py-2.5 bg-zinc-800/50 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent pr-10 ${error ? 'border-red-500' : 'border-zinc-700/50'
+                    }`}
                   placeholder="Enter your password"
                   required
                 />

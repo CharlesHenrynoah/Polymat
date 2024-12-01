@@ -1,478 +1,360 @@
 import React, { useState, useRef } from 'react';
-import { ArrowRight, Upload, ChevronDown } from 'lucide-react';
-import { sectors } from '../../data/sectors';
-import { birthPlaces } from '../../data/birthPlaces';
-import { countryCodes } from '../../data/countries';
+import { useNavigate } from 'react-router-dom';
+import { ArrowRight, Upload } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
+import ErrorBoundary from '../../components/ErrorBoundary';
+import './scrollbar.css';
 
 interface SignupLevel2Props {
-  onComplete: (data: {
-    photo?: File;
-    username: string;
-    firstName: string;
-    lastName: string;
-    description: string;
-    sector: string;
-    gender: string;
-    birthDate: string;
-    birthPlace: string;
-    phoneNumber: string;
-    countryCode: string;
-  }) => void;
   onBack: () => void;
 }
 
-export const SignupLevel2: React.FC<SignupLevel2Props> = ({ onComplete, onBack }) => {
-  const [formData, setFormData] = useState({
-    photo: undefined as File | undefined,
+interface FormData {
+  photo?: File;
+  photoPreview: string;
+  username: string;
+  firstName: string;
+  lastName: string;
+  description: string;
+  acceptTerms: boolean;
+}
+
+export const SignupLevel2: React.FC<SignupLevel2Props> = ({ onBack }) => {
+  const navigate = useNavigate();
+  const [formData, setFormData] = useState<FormData>({
+    photo: undefined,
     photoPreview: '',
     username: '',
     firstName: '',
     lastName: '',
     description: '',
-    sector: sectors[0],
-    gender: '',
-    birthDate: '',
-    birthPlace: Object.values(birthPlaces)[0][0],
-    phoneNumber: '',
-    countryCode: countryCodes[0].code,
-    verificationCode: '',
-    isVerificationSent: false,
     acceptTerms: false,
   });
 
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isCheckingUsername, setIsCheckingUsername] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const genderOptions = [
-    { value: 'male', label: 'Male' },
-    { value: 'female', label: 'Female' },
-    { value: 'non-binary', label: 'Non-binary' },
-    { value: 'not-specified', label: 'Prefer not to say' },
-    { value: 'other', label: 'Other' },
-  ];
-
-  const handleChange = (field: string, value: string | boolean | File) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    setErrors(prev => ({ ...prev, [field]: '' }));
-
-    if (field === 'username' && value) {
-      checkUsername(value as string);
-    }
+  const isFormComplete = () => {
+    return (
+      formData.username !== '' &&
+      formData.firstName !== '' &&
+      formData.lastName !== '' &&
+      formData.description !== '' &&
+      formData.acceptTerms
+    );
   };
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      handleChange('photo', file);
-      handleChange('photoPreview', URL.createObjectURL(file));
-    }
-  };
-
-  const checkUsername = async (username: string) => {
-    if (username.length < 3) return;
-    
-    setIsCheckingUsername(true);
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // For demo, randomly determine if username is taken
-      const isTaken = Math.random() > 0.7;
-      if (isTaken) {
-        setErrors(prev => ({
-          ...prev,
-          username: 'This username is already taken'
-        }));
-      }
-    } finally {
-      setIsCheckingUsername(false);
-    }
-  };
-
-  const sendVerificationCode = async () => {
-    if (!formData.phoneNumber) {
-      setErrors(prev => ({
-        ...prev,
-        phoneNumber: 'Please enter a phone number'
-      }));
-      return;
-    }
-
-    try {
-      // Simulate sending verification code
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      handleChange('isVerificationSent', true);
-    } catch (error) {
-      setErrors(prev => ({
-        ...prev,
-        phoneNumber: 'Failed to send verification code'
-      }));
-    }
-  };
-
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {};
-
-    if (!formData.username) newErrors.username = 'Username is required';
-    if (!formData.firstName) newErrors.firstName = 'First name is required';
-    if (!formData.lastName) newErrors.lastName = 'Last name is required';
-    if (!formData.description) newErrors.description = 'Description is required';
-    if (!formData.gender) newErrors.gender = 'Gender is required';
-    if (!formData.birthDate) newErrors.birthDate = 'Birth date is required';
-    if (!formData.phoneNumber) newErrors.phoneNumber = 'Phone number is required';
-    if (!formData.acceptTerms) {
-      newErrors.terms = 'You must accept the terms and conditions';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+  const convertToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          resolve(reader.result);
+        } else {
+          reject(new Error('Failed to convert image to base64'));
+        }
+      };
+      reader.onerror = (error) => reject(error);
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateForm()) return;
-
     setIsLoading(true);
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+    setError(null);
 
-      onComplete({
-        photo: formData.photo,
-        username: formData.username,
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        description: formData.description,
-        sector: formData.sector,
-        gender: formData.gender,
-        birthDate: formData.birthDate,
-        birthPlace: formData.birthPlace,
-        phoneNumber: formData.phoneNumber,
-        countryCode: formData.countryCode,
-      });
-    } catch (error) {
-      setErrors(prev => ({
-        ...prev,
-        submit: 'Failed to complete registration'
-      }));
+    try {
+      if (!isFormComplete()) {
+        setError('Please complete all required fields');
+        return;
+      }
+
+      console.log('Starting profile creation...');
+
+      // Get current authenticated user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setError('No authenticated user found');
+        return;
+      }
+
+      console.log('User authenticated:', user.id);
+
+      // Convert photo to base64 if exists
+      let photoBase64 = null;
+      if (formData.photo) {
+        try {
+          photoBase64 = await convertToBase64(formData.photo);
+          console.log('Photo converted to base64');
+        } catch (error) {
+          console.error('Error converting photo to base64:', error);
+          throw new Error('Failed to process profile photo');
+        }
+      }
+
+      // Prepare user profile data with only the necessary fields
+      const profileData = {
+        email: user.email,
+        username: formData.username.trim(),
+        first_name: formData.firstName.trim(),
+        last_name: formData.lastName.trim(),
+        description: formData.description.trim(),
+        profile_image: photoBase64, // Store base64 string directly
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        last_login: new Date().toISOString(),
+        is_active: true,
+        role: 'user',
+        preferences: JSON.stringify({
+          terms_accepted: formData.acceptTerms
+        })
+      };
+
+      console.log('Creating user profile...');
+
+      // Insert user profile
+      const { data: insertedProfile, error: profileError } = await supabase
+        .from('users')
+        .insert(profileData)
+        .select()
+        .single();
+
+      if (profileError) {
+        console.error('Profile creation error:', profileError);
+        throw profileError;
+      }
+
+      console.log('Profile created:', insertedProfile);
+
+      // Create default VisualSpace
+      const { data: visualSpace, error: spaceError } = await supabase
+        .from('visual_spaces')
+        .insert({
+          title: `${formData.username}'s First Space`,
+          description: 'My first personal visual space',
+          user_id: insertedProfile.id,
+          created_at: new Date().toISOString(),
+          last_modified: new Date().toISOString(),
+          last_accessed: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (spaceError) {
+        console.error('VisualSpace creation error:', spaceError);
+        throw spaceError;
+      }
+
+      console.log('VisualSpace created:', visualSpace);
+
+      // Ensure we have a valid space ID
+      if (!visualSpace?.id) {
+        throw new Error('Created VisualSpace has no ID');
+      }
+
+      console.log('Navigating to:', `/space/${visualSpace.id}`);
+
+      // Navigate to the created VisualSpace
+      navigate(`/space/${visualSpace.id}`, { replace: true });
+
+    } catch (error: any) {
+      console.error('Error during profile creation:', error);
+      setError(error.message || 'An error occurred during submission');
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData((prev) => ({
+          ...prev,
+          photo: file,
+          photoPreview: reader.result as string,
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   return (
-    <div 
-      className="min-h-screen bg-zinc-900 flex items-center justify-center p-4 sm:p-8"
-    >
-      <div className="w-full max-w-3xl space-y-8 bg-zinc-900/50 backdrop-blur-xl rounded-2xl p-6 sm:p-8 border border-zinc-800">
-        {/* Logo */}
-        <div className="text-center">
-          <h1 className="text-4xl font-bold text-white font-['Orbitron']">Polymat</h1>
-          <p className="mt-2 text-lg text-zinc-400">Complete your profile</p>
-        </div>
+    <ErrorBoundary>
+      <div 
+        className="min-h-screen flex items-center justify-center bg-black relative overflow-y-auto scrollbar-hide"
+        style={{
+          backgroundImage: 'url(/src/bg/eso1509a-1.jpg)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          msOverflowStyle: 'none',
+          scrollbarWidth: 'none',
+        }}
+      >
+        <div className="absolute inset-0 bg-black/90 z-0" />
 
-        {/* Progress Indicator */}
-        <div className="flex items-center justify-center mb-8">
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 rounded-full bg-white text-gray-900 flex items-center justify-center text-sm border border-gray-200">✓</div>
-            <div className="w-12 h-0.5 bg-gray-200" />
-            <div className="w-8 h-8 rounded-full bg-white text-gray-900 flex items-center justify-center text-sm border border-gray-200">2</div>
+        <div className="relative z-10 w-full max-w-md p-8">
+          {/* Logo */}
+          <div className="text-center mb-8">
+            <h1 className="text-4xl font-bold text-white font-['Orbitron']">Polymat</h1>
+            <p className="mt-2 text-zinc-400">Complete your profile</p>
           </div>
-        </div>
 
-        {/* Profile Form */}
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-zinc-900/50 backdrop-blur-md p-6 sm:p-8 rounded-2xl border border-zinc-800">
-            {/* Photo Upload */}
-            <div className="flex justify-center">
-              <div className="relative">
+          {/* Progress Indicator */}
+          <div className="flex items-center justify-center mb-8">
+            <div className="flex items-center space-x-2">
+              <div className="w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center text-sm">✓</div>
+              <div className="w-12 h-0.5 bg-orange-500" />
+              <div className="w-8 h-8 rounded-full bg-orange-500 text-white flex items-center justify-center text-sm">2</div>
+            </div>
+          </div>
+
+          {/* Error Message */}
+          {error && (
+            <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-2 rounded-md mb-4 text-center">
+              {error}
+            </div>
+          )}
+
+          {/* Form Container */}
+          <div className="space-y-4 bg-zinc-900/30 backdrop-blur-xl rounded-lg p-6 border border-zinc-800/50">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Photo Upload */}
+              <div className="flex items-center space-x-4">
                 <input
                   type="file"
                   ref={fileInputRef}
-                  onChange={handlePhotoChange}
+                  onChange={handlePhotoUpload}
                   accept="image/*"
                   className="hidden"
                 />
-                <div 
+                <div
                   onClick={() => fileInputRef.current?.click()}
-                  className="w-32 h-32 rounded-full bg-gray-200 border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:bg-gray-300/50 transition-colors group"
+                  className="w-20 h-20 rounded-full bg-zinc-800 flex items-center justify-center cursor-pointer hover:bg-zinc-700 transition-colors"
                 >
                   {formData.photoPreview ? (
                     <img
                       src={formData.photoPreview}
-                      alt="Profile preview"
+                      alt="Profile"
                       className="w-full h-full rounded-full object-cover"
                     />
                   ) : (
-                    <Upload className="w-8 h-8 text-gray-500 group-hover:text-gray-700 transition-colors" />
+                    <Upload className="w-8 h-8 text-zinc-500" />
                   )}
                 </div>
-              </div>
-            </div>
-
-            {/* Basic Information */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1.5">
-                  Username *
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={formData.username}
-                    onChange={(e) => handleChange('username', e.target.value)}
-                    className={`w-full px-4 py-2.5 bg-zinc-800/50 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent ${
-                      errors.username ? 'border-red-500' : 'border-zinc-700/50'
-                    }`}
-                    placeholder="Choose a username"
-                  />
-                  {isCheckingUsername && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-                    </div>
-                  )}
+                <div>
+                  <p className="text-sm text-zinc-400">Upload Profile Photo</p>
+                  <p className="text-xs text-zinc-500">PNG or JPEG (max 5MB)</p>
                 </div>
-                {errors.username && (
-                  <p className="mt-1 text-sm text-red-500">{errors.username}</p>
-                )}
               </div>
 
+              {/* Username */}
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1.5">
-                  First Name *
+                <label htmlFor="username" className="block text-sm text-zinc-400 mb-1">
+                  Username
                 </label>
                 <input
+                  id="username"
+                  type="text"
+                  value={formData.username}
+                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                  className="w-full px-3 py-2 bg-zinc-800/50 border border-zinc-700/50 rounded-md text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  placeholder="Choose a unique username"
+                />
+              </div>
+
+              {/* First Name */}
+              <div>
+                <label htmlFor="firstName" className="block text-sm text-zinc-400 mb-1">
+                  First Name
+                </label>
+                <input
+                  id="firstName"
                   type="text"
                   value={formData.firstName}
-                  onChange={(e) => handleChange('firstName', e.target.value)}
-                  className={`w-full px-4 py-2.5 bg-zinc-800/50 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent ${
-                    errors.firstName ? 'border-red-500' : 'border-zinc-700/50'
-                  }`}
+                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                  className="w-full px-3 py-2 bg-zinc-800/50 border border-zinc-700/50 rounded-md text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                   placeholder="Enter your first name"
                 />
-                {errors.firstName && (
-                  <p className="mt-1 text-sm text-red-500">{errors.firstName}</p>
-                )}
               </div>
 
+              {/* Last Name */}
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1.5">
-                  Last Name *
+                <label htmlFor="lastName" className="block text-sm text-zinc-400 mb-1">
+                  Last Name
                 </label>
                 <input
+                  id="lastName"
                   type="text"
                   value={formData.lastName}
-                  onChange={(e) => handleChange('lastName', e.target.value)}
-                  className={`w-full px-4 py-2.5 bg-zinc-800/50 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent ${
-                    errors.lastName ? 'border-red-500' : 'border-zinc-700/50'
-                  }`}
+                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                  className="w-full px-3 py-2 bg-zinc-800/50 border border-zinc-700/50 rounded-md text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                   placeholder="Enter your last name"
                 />
-                {errors.lastName && (
-                  <p className="mt-1 text-sm text-red-500">{errors.lastName}</p>
-                )}
               </div>
 
+              {/* Description */}
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1.5">
-                  Gender *
+                <label htmlFor="description" className="block text-sm text-zinc-400 mb-1">
+                  Description
                 </label>
-                <select
-                  value={formData.gender}
-                  onChange={(e) => handleChange('gender', e.target.value)}
-                  className={`w-full px-4 py-2.5 bg-zinc-800/50 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent ${
-                    errors.gender ? 'border-red-500' : 'border-zinc-700/50'
-                  }`}
-                >
-                  <option value="">Select gender</option>
-                  {genderOptions.map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-                {errors.gender && (
-                  <p className="mt-1 text-sm text-red-500">{errors.gender}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Description */}
-            <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-1.5">
-                Short Description *
-              </label>
-              <textarea
-                value={formData.description}
-                onChange={(e) => handleChange('description', e.target.value)}
-                className={`w-full px-4 py-2.5 bg-zinc-800/50 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none ${
-                  errors.description ? 'border-red-500' : 'border-zinc-700/50'
-                }`}
-                rows={3}
-                placeholder="Tell us about yourself"
-                maxLength={500}
-              />
-              <div className="mt-1 flex justify-between text-xs text-gray-500">
-                <span>{500 - formData.description.length} characters remaining</span>
-                {errors.description && (
-                  <span className="text-red-500">{errors.description}</span>
-                )}
-              </div>
-            </div>
-
-            {/* Industry & Birth Info */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1.5">
-                  Industry *
-                </label>
-                <select
-                  value={formData.sector}
-                  onChange={(e) => handleChange('sector', e.target.value)}
-                  className="w-full px-4 py-2.5 bg-zinc-800/50 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                >
-                  {sectors.map(sector => (
-                    <option key={sector} value={sector}>
-                      {sector}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1.5">
-                  Birth Date *
-                </label>
-                <input
-                  type="date"
-                  value={formData.birthDate}
-                  onChange={(e) => handleChange('birthDate', e.target.value)}
-                  className={`w-full px-4 py-2.5 bg-zinc-800/50 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent ${
-                    errors.birthDate ? 'border-red-500' : 'border-zinc-700/50'
-                  }`}
+                <textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  className="w-full px-3 py-2 bg-zinc-800/50 border border-zinc-700/50 rounded-md text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  placeholder="Tell us about yourself"
+                  rows={3}
                 />
-                {errors.birthDate && (
-                  <p className="mt-1 text-sm text-red-500">{errors.birthDate}</p>
-                )}
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1.5">
-                  Birth Place *
+              {/* Terms Checkbox */}
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="terms"
+                  checked={formData.acceptTerms}
+                  onChange={(e) => setFormData({ ...formData, acceptTerms: e.target.checked })}
+                  className="w-4 h-4 rounded border-zinc-700 text-orange-500 focus:ring-orange-500 focus:ring-offset-zinc-900 bg-zinc-800/50"
+                />
+                <label htmlFor="terms" className="text-sm text-zinc-400">
+                  I accept the terms and conditions
                 </label>
-                <select
-                  value={formData.birthPlace}
-                  onChange={(e) => handleChange('birthPlace', e.target.value)}
-                  className="w-full px-4 py-2.5 bg-zinc-800/50 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              </div>
+
+              {/* Navigation Buttons */}
+              <div className="flex justify-between gap-4">
+                <button
+                  type="button"
+                  onClick={onBack}
+                  className="flex-1 px-4 py-2 text-zinc-400 hover:text-white transition-colors"
                 >
-                  {Object.entries(birthPlaces).map(([continent, places]) => (
-                    <optgroup key={continent} label={continent.toUpperCase()}>
-                      {places.map(place => (
-                        <option key={place} value={place}>
-                          {place}
-                        </option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
+                  Back
+                </button>
+                <button
+                  type="submit"
+                  disabled={!isFormComplete() || isLoading}
+                  className={`flex-1 flex items-center justify-center space-x-2 px-4 py-2 text-white rounded-lg transition-all duration-200 bg-orange-500 ${
+                    isFormComplete() && !isLoading
+                      ? 'hover:bg-orange-600'
+                      : 'opacity-50 cursor-not-allowed'
+                  }`}
+                >
+                  <span>Complete Profile</span>
+                  {isLoading ? (
+                    <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <ArrowRight className="w-5 h-5" />
+                  )}
+                </button>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1.5">
-                  Phone Number *
-                </label>
-                <div className="flex gap-2">
-                  <div className="w-32">
-                    <select
-                      value={formData.countryCode}
-                      onChange={(e) => handleChange('countryCode', e.target.value)}
-                      className="w-full px-4 py-2.5 bg-zinc-800/50 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    >
-                      {countryCodes.map(({ code, country }) => (
-                        <option key={code} value={code}>
-                          {code} ({country})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="flex-1">
-                    <input
-                      type="tel"
-                      value={formData.phoneNumber}
-                      onChange={(e) => handleChange('phoneNumber', e.target.value)}
-                      className={`w-full px-4 py-2.5 bg-zinc-800/50 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent ${
-                        errors.phoneNumber ? 'border-red-500' : 'border-zinc-700/50'
-                      }`}
-                      placeholder="Phone number"
-                    />
-                  </div>
-                </div>
-                {errors.phoneNumber && (
-                  <p className="mt-1 text-sm text-red-500">{errors.phoneNumber}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Terms and Conditions */}
-            <div className="space-y-4">
-              <label className="flex items-start gap-3 cursor-pointer group">
-                <div className="relative flex items-start">
-                  <div className="bg-white border border-gray-200 w-6 h-6 rounded transition-colors group-hover:border-gray-400">
-                    <input
-                      type="checkbox"
-                      className="absolute w-full h-full opacity-0 cursor-pointer"
-                      checked={formData.acceptTerms}
-                      onChange={(e) => handleChange('acceptTerms', e.target.checked)}
-                    />
-                    {formData.acceptTerms && (
-                      <svg className="w-6 h-6 text-gray-900" viewBox="0 0 24 24">
-                        <path
-                          fill="currentColor"
-                          d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"
-                        />
-                      </svg>
-                    )}
-                  </div>
-                </div>
-                <span className="text-sm text-zinc-400 hover:text-zinc-300 transition-colors font-medium">
-                  I accept the{' '}
-                  <a href="#" className="text-zinc-400 hover:text-zinc-300 transition-colors font-medium">
-                    Terms of Service
-                  </a>{' '}
-                  and{' '}
-                  <a href="#" className="text-zinc-400 hover:text-zinc-300 transition-colors font-medium">
-                    Privacy Policy
-                  </a>
-                </span>
-              </label>
-              {errors.terms && (
-                <p className="text-sm text-red-500">{errors.terms}</p>
-              )}
-            </div>
-
-            {/* Navigation Buttons */}
-            <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-              <button
-                type="button"
-                onClick={onBack}
-                className="px-6 py-2 text-gray-600 hover:text-gray-900 transition-colors"
-              >
-                Back
-              </button>
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="flex items-center justify-center gap-2 px-6 py-2 bg-white hover:bg-gray-50 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-zinc-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <span>Complete Registration</span>
-                <ArrowRight className="w-5 h-5" />
-              </button>
-            </div>
+            </form>
           </div>
-        </form>
+        </div>
       </div>
-    </div>
+    </ErrorBoundary>
   );
 };

@@ -3,6 +3,7 @@ import App from './App';
 import { Login } from './pages/Login';
 import { SignupFlow } from './pages/SignupFlow/index';
 import { SignupGuard } from './components/Guards/SignupGuard';
+import { VisualSpace } from './pages/VisualSpace';
 
 const router = createBrowserRouter([
   {
@@ -20,6 +21,14 @@ const router = createBrowserRouter([
   {
     path: '/signup',
     element: <SignupFlow />,
+  },
+  {
+    path: '/space/:id',
+    element: (
+      <SignupGuard>
+        <VisualSpace />
+      </SignupGuard>
+    ),
   },
   {
     path: '/:username/:spaceTitle?',
