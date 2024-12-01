@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
+import { LoadingIndicator } from '../../components/LoadingIndicator';
 
 interface VisualSpaceData {
   id: number;
@@ -45,7 +46,7 @@ export const VisualSpace: React.FC = () => {
     loadVisualSpace();
   }, [id]);
 
-  if (loading) return <div className="flex items-center justify-center h-screen">Loading...</div>;
+  if (loading) return <div className="flex items-center justify-center h-screen"><LoadingIndicator /></div>;
   if (error) return <div className="flex items-center justify-center h-screen text-red-500">{error}</div>;
   if (!space) return <div className="flex items-center justify-center h-screen">Visual space not found</div>;
 
@@ -58,7 +59,7 @@ export const VisualSpace: React.FC = () => {
         </header>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Placeholder pour le contenu futur */}
+          {/* Placeholder for future content */}
           <div className="bg-zinc-900 rounded-lg p-6">
             <h3 className="text-xl font-semibold mb-4">Welcome to Your Space</h3>
             <p className="text-zinc-400">
