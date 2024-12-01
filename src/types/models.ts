@@ -14,13 +14,13 @@ export type Model = {
   category: string;
 };
 
-export type ChatMessage = {
+export interface ChatMessage {
   id: string;
   content: string;
   role: 'user' | 'assistant';
-  timestamp: Date;
+  timestamp: string;
   attachments?: File[];
   mediaUrl?: string;
   mediaType?: 'video' | 'image' | 'audio' | 'code';
   modelId?: string;
-};
+}

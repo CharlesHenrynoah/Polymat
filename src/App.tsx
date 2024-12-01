@@ -1,212 +1,186 @@
-import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { ModelSelector } from './components/ModelSelector/ModelSelector';
+import React, { useState, useEffect, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { ChatMessage as ChatMessageType } from './types/models';
 import { ChatMessage } from './components/Chat/ChatMessage';
 import { ChatInput } from './components/Chat/ChatInput';
-import { modelCategories } from './data/modelCategories';
-import { ConversationList } from './components/ConversationHistory/ConversationList';
-import { Conversation } from './types/conversation';
-import { UserMenu } from './components/UserMenu/UserMenu';
-import { MyAccount } from './pages/MyAccount';
-import { BackgroundSettings } from './components/Chat/BackgroundSettings';
-import { Login } from './pages/Login';
-import { SignupFlow } from './pages/SignupFlow';
-
-const getModelAvatar = (modelId: string): string => {
-  const avatars: Record<string, string> = {
-    'text-to-video-1': 'https://images.unsplash.com/photo-1676299081847-824916de030a?w=120&h=120&auto=format&fit=crop&q=80',
-    'text-to-music-1': 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=120&h=120&auto=format&fit=crop&q=80',
-    'text-to-code-1': 'https://images.unsplash.com/photo-1676299082587-7e54cd6a9b0f?w=120&h=120&auto=format&fit=crop&q=80',
-    'text-to-image-1': 'https://images.unsplash.com/photo-1675426513824-77813readf13?w=120&h=120&auto=format&fit=crop&q=80',
-    'text-to-speech-1': 'https://images.unsplash.com/photo-1677442135426-5a23b266235c?w=120&h=120&auto=format&fit=crop&q=80',
-    'multimodal-1': 'https://images.unsplash.com/photo-1675426513824-77813readf13?w=120&h=120&auto=format&fit=crop&q=80',
-    'image-to-image-1': 'https://images.unsplash.com/photo-1677442135426-5a23b266235c?w=120&h=120&auto=format&fit=crop&q=80',
-    'image-to-video-1': 'https://images.unsplash.com/photo-1676299081847-824916de030a?w=120&h=120&auto=format&fit=crop&q=80',
-  };
-
-  return avatars[modelId] || 'https://images.unsplash.com/photo-1675426513824-77813readf13?w=120&h=120&auto=format&fit=crop&q=80';
-};
+import { CreateVisualSpace } from './components/VisualSpace/CreateVisualSpace';
+import { VisualSpaceList } from './components/VisualSpace/VisualSpaceList';
+import { BackgroundSettings } from './components/Settings/BackgroundSettings';
+import { MyAccount } from './components/Settings/MyAccount';
+import { VisualSpace } from './types/visualSpace';
+import { visualSpaceService } from './services/visualSpaceService';
+import { supabase } from './lib/supabase';
 
 function App() {
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
-  const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
-  const [selectedModelId, setSelectedModelId] = useState<string>(modelCategories[0].models[0].id);
+  const { username, spaceTitle } = useParams();
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [showMyAccount, setShowMyAccount] = useState(false);
-  const [username, setUsername] = useState('User');
+  const [usernameState, setUsernameState] = useState('User');
   const [profileImage, setProfileImage] = useState('https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&h=200&auto=format&fit=crop');
   const [isBackgroundSettingsOpen, setIsBackgroundSettingsOpen] = useState(false);
   const [backgroundImage, setBackgroundImage] = useState('https://images.unsplash.com/photo-1676299081847-824916de030a?auto=format&fit=crop&q=80');
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isSigningUp, setIsSigningUp] = useState(false);
+  const [isVisualSpaceListOpen, setIsVisualSpaceListOpen] = useState(false);
+  const [isCreatingSpace, setIsCreatingSpace] = useState(false);
+  const [currentVisualSpace, setCurrentVisualSpace] = useState<VisualSpace | null>(null);
+  const [visualSpaces, setVisualSpaces] = useState<VisualSpace[]>([]);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [userProfile, setUserProfile] = useState<{ username: string } | null>(null);
+  const [messages, setMessages] = useState<ChatMessageType[]>([]);
 
-  const selectedModel = modelCategories
-    .flatMap(category => category.models)
-    .find(model => model.id === selectedModelId);
-
-  const selectedCategory = modelCategories.find(category =>
-    category.models.some(model => model.id === selectedModelId)
-  );
-
-  const handleNewWorkspace = () => {
-    const newConversation: Conversation = {
-      id: Date.now().toString(),
-      title: 'New Workspace',
-      lastMessage: '',
-      timestamp: new Date(),
-      messages: []
+  useEffect(() => {
+    // Vérifier l'authentification au chargement
+    const checkAuth = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUserId(user.id);
+        
+        // Récupérer le profil utilisateur
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('username')
+          .eq('id', user.id)
+          .single();
+        
+        if (profile) {
+          setUserProfile(profile);
+          // Rediriger vers l'URL avec le username si on est sur une autre page
+          if (!username) {
+            navigate(`/${profile.username}`);
+          }
+        }
+        
+        await loadVisualSpaces(user.id);
+      } else {
+        // Rediriger vers login si non authentifié
+        navigate('/login');
+      }
     };
-    setConversations(prev => [newConversation, ...prev]);
-    setCurrentConversation(newConversation);
-  };
+    checkAuth();
+  }, [navigate, username]);
 
-  const handleDeleteConversation = (id: string) => {
-    setConversations(prev => prev.filter(conv => conv.id !== id));
-    if (currentConversation?.id === id) {
-      setCurrentConversation(null);
+  // Charger le Visual Space spécifié dans l'URL
+  useEffect(() => {
+    if (spaceTitle && visualSpaces.length > 0) {
+      const space = visualSpaces.find(
+        s => s.title.toLowerCase() === decodeURIComponent(spaceTitle).toLowerCase()
+      );
+      if (space) {
+        setCurrentVisualSpace(space);
+      } else {
+        // Si le space n'existe pas, rediriger vers la racine du profil
+        navigate(`/${username}`);
+      }
+    }
+  }, [spaceTitle, visualSpaces, username, navigate]);
+
+  const loadVisualSpaces = async (uid: string) => {
+    const spaces = await visualSpaceService.getVisualSpaces(uid);
+    setVisualSpaces(spaces);
+    
+    // Si pas de space dans l'URL, charger le dernier utilisé
+    if (!spaceTitle && spaces.length > 0) {
+      setCurrentVisualSpace(spaces[0]);
+      navigate(`/${userProfile?.username}/${encodeURIComponent(spaces[0].title)}`);
     }
   };
 
-  const handleRenameConversation = (id: string, newTitle: string) => {
-    setConversations(prev =>
-      prev.map(conv =>
-        conv.id === id
-          ? { ...conv, title: newTitle }
-          : conv
-      )
-    );
-    if (currentConversation?.id === id) {
-      setCurrentConversation(prev => prev ? { ...prev, title: newTitle } : null);
+  const handleSelectVisualSpace = async (space: VisualSpace) => {
+    setCurrentVisualSpace(space);
+    setIsVisualSpaceListOpen(false);
+    
+    // Mettre à jour l'URL
+    navigate(`/${userProfile?.username}/${encodeURIComponent(space.title)}`);
+    
+    // Mettre à jour last_accessed
+    await visualSpaceService.updateLastAccessed(space.id);
+    
+    // Mettre à jour la liste pour refléter le nouvel ordre
+    const updatedSpaces = await visualSpaceService.getVisualSpaces(userId!);
+    setVisualSpaces(updatedSpaces);
+  };
+
+  const handleCreateVisualSpace = async (title: string) => {
+    if (!userId) return;
+    
+    try {
+      const newSpace = await visualSpaceService.createVisualSpace(userId, title);
+      if (newSpace) {
+        setVisualSpaces(prev => [newSpace, ...prev]);
+        setCurrentVisualSpace(newSpace);
+        setIsCreatingSpace(false);
+        // Mettre à jour l'URL avec le nouveau space
+        navigate(`/${userProfile?.username}/${encodeURIComponent(newSpace.title)}`);
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        alert(error.message);
+      } else {
+        alert('An error occurred while creating the Visual Space');
+      }
     }
+  };
+
+  const handleDeleteVisualSpace = async (space: VisualSpace) => {
+    if (!userId) return;
+
+    const success = await visualSpaceService.deleteVisualSpace(space.id);
+    if (success) {
+      setVisualSpaces(prev => prev.filter(s => s.id !== space.id));
+      
+      // Si l'espace supprimé était l'espace courant, sélectionner le premier espace disponible
+      if (currentVisualSpace?.id === space.id) {
+        const remainingSpaces = visualSpaces.filter(s => s.id !== space.id);
+        if (remainingSpaces.length > 0) {
+          setCurrentVisualSpace(remainingSpaces[0]);
+          navigate(`/${userProfile?.username}/${encodeURIComponent(remainingSpaces[0].title)}`);
+        } else {
+          setCurrentVisualSpace(null);
+          navigate(`/${userProfile?.username}`);
+        }
+      }
+    } else {
+      alert('Failed to delete the Visual Space. Please try again.');
+    }
+  };
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    setUserId(null);
+    setVisualSpaces([]);
+    setCurrentVisualSpace(null);
+    setUserProfile(null);
+    navigate('/login');
   };
 
   const handleSendMessage = async (content: string, attachments?: File[]) => {
-    if (!currentConversation) {
-      const newConversation: Conversation = {
-        id: Date.now().toString(),
-        title: content.slice(0, 30) + (content.length > 30 ? '...' : ''),
-        lastMessage: content,
-        timestamp: new Date(),
-        messages: []
-      };
-      setConversations(prev => [newConversation, ...prev]);
-      setCurrentConversation(newConversation);
-    }
+    if (!content.trim()) return;
 
-    const activeConversation = currentConversation || {
-      id: Date.now().toString(),
-      title: content.slice(0, 30) + (content.length > 30 ? '...' : ''),
-      lastMessage: content,
-      timestamp: new Date(),
-      messages: []
-    };
-
-    const userMessage: ChatMessageType = {
+    const newMessage: ChatMessageType = {
       id: Date.now().toString(),
       content,
       role: 'user',
-      timestamp: new Date(),
-      attachments,
+      timestamp: new Date().toISOString(),
     };
 
-    const updatedConversation = {
-      ...activeConversation,
-      lastMessage: content,
-      timestamp: new Date(),
-      messages: [...activeConversation.messages, userMessage]
-    };
-
-    setConversations(prev =>
-      prev.map(conv =>
-        conv.id === activeConversation.id ? updatedConversation : conv
-      )
-    );
-    setCurrentConversation(updatedConversation);
-    setIsLoading(true);
-
-    setTimeout(() => {
-      const aiMessage: ChatMessageType = {
-        id: (Date.now() + 1).toString(),
-        content: `Response from ${selectedModel?.name}`,
-        role: 'assistant',
-        timestamp: new Date(),
-        modelId: selectedModelId,
-        mediaType: selectedCategory?.id.includes('video')
-          ? 'video'
-          : selectedCategory?.id.includes('image')
-          ? 'image'
-          : selectedCategory?.id.includes('music') || selectedCategory?.id.includes('speech')
-          ? 'audio'
-          : selectedCategory?.id.includes('code')
-          ? 'code'
-          : undefined,
-        mediaUrl: 'https://example.com/sample-media',
-      };
-
-      const finalConversation = {
-        ...updatedConversation,
-        lastMessage: aiMessage.content,
-        messages: [...updatedConversation.messages, aiMessage]
-      };
-
-      setConversations(prev =>
-        prev.map(conv =>
-          conv.id === activeConversation.id ? finalConversation : conv
-      ));
-      setCurrentConversation(finalConversation);
-      setIsLoading(false);
-    }, 1000);
-  };
-
-  const handleLogin = async (email: string, password: string) => {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setIsAuthenticated(true);
-    setIsSigningUp(false);
-  };
-
-  const handleSignOut = () => {
-    setIsAuthenticated(false);
-    setIsSigningUp(false);
-  };
-
-  const handleSignupComplete = async (data: any) => {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setIsAuthenticated(true);
-    setIsSigningUp(false);
+    setMessages(prev => [...prev, newMessage]);
   };
 
   const handleSaveAccount = (username: string, profileImage: string) => {
-    setUsername(username);
+    setUsernameState(username);
     setProfileImage(profileImage);
     setShowMyAccount(false);
   };
 
-  if (!isAuthenticated) {
-    if (isSigningUp) {
-      return (
-        <SignupFlow
-          onBack={() => setIsSigningUp(false)}
-          onComplete={handleSignupComplete}
-        />
-      );
-    }
-    return (
-      <Login
-        onLogin={handleLogin}
-        onSignup={() => setIsSigningUp(true)}
-      />
-    );
-  }
+  const handleSaveBackground = (imageUrl: string) => {
+    setBackgroundImage(imageUrl);
+    setIsBackgroundSettingsOpen(false);
+  };
 
   if (showMyAccount) {
     return (
       <MyAccount
-        username={username}
+        username={usernameState}
         profileImage={profileImage}
         onBack={() => setShowMyAccount(false)}
         onSave={handleSaveAccount}
@@ -215,131 +189,101 @@ function App() {
   }
 
   return (
-    <div className="h-screen flex overflow-hidden bg-[#050505]">
+    <div className="h-screen flex flex-col bg-[#0A0A0A] text-white relative overflow-hidden">
+      {/* Background Image */}
       <div
-        className={`bg-[#0A0A0A] border-r border-[#151515] flex flex-col transition-all duration-300 ease-in-out ${
-          isSidebarCollapsed ? 'w-0' : 'w-80'
-        }`}
-      >
-        <ConversationList
-          conversations={conversations}
-          currentConversation={currentConversation}
-          onNewChat={handleNewWorkspace}
-          onSelectConversation={setCurrentConversation}
-          onDeleteConversation={handleDeleteConversation}
-          onRenameConversation={handleRenameConversation}
-          isCollapsed={isSidebarCollapsed}
-        />
-      </div>
+        className="absolute inset-0 bg-cover bg-center opacity-10"
+        style={{ backgroundImage: `url(${backgroundImage})` }}
+      />
 
-      <button
-        onClick={() => setIsSidebarCollapsed(prev => !prev)}
-        className="absolute left-0 top-1/2 -translate-y-1/2 bg-[#0A0A0A] p-1.5 rounded-r-lg border border-l-0 border-[#151515] hover:bg-[#151515] transition-colors z-10 text-zinc-400 hover:text-orange-500"
-      >
-        {isSidebarCollapsed ? (
-          <ChevronRight className="w-5 h-5" />
-        ) : (
-          <ChevronLeft className="w-5 h-5" />
-        )}
-      </button>
-
-      <div className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="flex-none flex items-center justify-between p-4 border-b border-[#151515] bg-[#0A0A0A]/80 backdrop-blur-sm relative z-10">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setIsModelSelectorOpen(true)}
-              className="flex items-center gap-3 px-4 py-2 bg-[#151515] rounded-lg hover:bg-[#1A1A1A] transition-colors text-white group"
-            >
-              <div className="relative">
-                <img
-                  src={getModelAvatar(selectedModelId)}
-                  alt={selectedModel?.name}
-                  className="w-8 h-8 rounded-full object-cover"
-                />
-              </div>
-              <span className="font-medium group-hover:text-orange-500 transition-colors">
-                {selectedModel ? selectedModel.name : 'Select AI Model'}
-              </span>
-            </button>
-          </div>
-
-          <h1 className="absolute left-1/2 -translate-x-1/2 text-2xl font-bold font-['Orbitron'] text-orange-500 whitespace-nowrap">
-            Polymat
-          </h1>
-
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setIsBackgroundSettingsOpen(true)}
-              className="text-xs px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-orange-500 rounded-full transition-colors"
-            >
-              Change background
-            </button>
-            <UserMenu 
-              onSignOut={handleSignOut}
-              username={username}
-              profileImage={profileImage}
-              onMyAccount={() => setShowMyAccount(true)}
-            />
-          </div>
-        </header>
-
-        <div 
-          className="flex-1 overflow-hidden flex flex-col min-h-0"
-          style={{
-            backgroundImage: `url(${backgroundImage})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            backgroundRepeat: 'no-repeat',
-          }}
-        >
-          <div className="flex-1 overflow-y-auto backdrop-blur-sm bg-black/40">
-            <div className="p-4 space-y-4">
-              {currentConversation ? (
-                currentConversation.messages.map((message) => (
-                  <ChatMessage 
-                    key={message.id} 
-                    message={message} 
-                    modelId={message.modelId || selectedModelId}
-                    userAvatar={profileImage}
-                  />
-                ))
-              ) : (
-                <div className="h-full flex items-center justify-center text-zinc-500">
-                  Start typing to begin a new workspace
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="flex-none p-4 border-t border-[#151515] bg-[#0A0A0A]/80 backdrop-blur-sm">
-            <ChatInput
-              onSendMessage={handleSendMessage}
-              allowAttachments={selectedCategory?.requiresAttachment}
-              isLoading={isLoading}
-            />
-          </div>
+      {/* Header */}
+      <header className="relative flex items-center justify-between p-4 bg-black/50 backdrop-blur-sm border-b border-zinc-800">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => setIsVisualSpaceListOpen(true)}
+            className="text-lg font-semibold hover:text-orange-500 transition-colors"
+          >
+            {currentVisualSpace?.title || 'Select Visual Space'}
+          </button>
         </div>
 
-        {isModelSelectorOpen && (
-          <ModelSelector
-            onSelectModel={(modelId) => {
-              setSelectedModelId(modelId);
-              setIsModelSelectorOpen(false);
-            }}
-            onClose={() => setIsModelSelectorOpen(false)}
-          />
-        )}
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => setIsBackgroundSettingsOpen(true)}
+            className="p-2 hover:bg-zinc-800 rounded-lg transition-colors"
+            title="Change background"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </button>
 
-        {isBackgroundSettingsOpen && (
-          <BackgroundSettings
-            onSelectBackground={(bg) => {
-              setBackgroundImage(bg);
-              setIsBackgroundSettingsOpen(false);
-            }}
-            onClose={() => setIsBackgroundSettingsOpen(false)}
-          />
-        )}
+          <button
+            onClick={() => setShowMyAccount(true)}
+            className="w-8 h-8 rounded-full overflow-hidden hover:ring-2 hover:ring-orange-500 transition-all"
+          >
+            <img
+              src={profileImage}
+              alt="Profile"
+              className="w-full h-full object-cover"
+            />
+          </button>
+
+          <button
+            onClick={handleSignOut}
+            className="p-2 hover:bg-zinc-800 rounded-lg transition-colors"
+            title="Sign out"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="flex-1 overflow-hidden relative">
+        {/* Chat Messages */}
+        <div className="absolute inset-0 overflow-y-auto py-4 space-y-4">
+          {messages.map((message) => (
+            <ChatMessage key={message.id} message={message} />
+          ))}
+        </div>
+      </main>
+
+      {/* Chat Input */}
+      <div className="relative p-4 bg-black/50 backdrop-blur-sm border-t border-zinc-800">
+        <ChatInput onSend={handleSendMessage} />
       </div>
+
+      {/* Visual Space List */}
+      {isVisualSpaceListOpen && (
+        <VisualSpaceList
+          spaces={visualSpaces}
+          onSelect={handleSelectVisualSpace}
+          onClose={() => setIsVisualSpaceListOpen(false)}
+          onDelete={handleDeleteVisualSpace}
+          onCreate={() => setIsCreatingSpace(true)}
+        />
+      )}
+
+      {/* Create Visual Space */}
+      {isCreatingSpace && (
+        <CreateVisualSpace
+          onSubmit={handleCreateVisualSpace}
+          onCancel={() => setIsCreatingSpace(false)}
+          userId={userId!}
+        />
+      )}
+
+      {/* Background Settings */}
+      {isBackgroundSettingsOpen && (
+        <BackgroundSettings
+          currentImage={backgroundImage}
+          onSave={handleSaveBackground}
+          onClose={() => setIsBackgroundSettingsOpen(false)}
+        />
+      )}
     </div>
   );
 }

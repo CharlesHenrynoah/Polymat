@@ -1,25 +1,50 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
 import { Eye, EyeOff, ArrowRight } from 'lucide-react';
 
 interface LoginProps {
   onLogin: (email: string, password: string) => void;
 }
 
-export const Login: React.FC<LoginProps> = ({ onLogin }) => {
+export const Login: React.FC<LoginProps> = () => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [rememberMe, setRememberMe] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     setIsLoading(true);
-    
+
     try {
-      await onLogin(email, password);
-    } catch (error) {
-      console.error('Login failed:', error);
+      const { data: { user }, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (signInError) throw signInError;
+      if (!user) throw new Error('No user returned from login');
+
+      // Récupérer le profil de l'utilisateur
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('id', user.id)
+        .single();
+
+      if (profile) {
+        // Rediriger vers la page de l'utilisateur
+        navigate(`/${profile.username}`);
+      } else {
+        throw new Error('User profile not found');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred during login');
     } finally {
       setIsLoading(false);
     }
@@ -111,13 +136,21 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
               </button>
             </div>
 
+            {/* Error Message */}
+            {error && (
+              <p className="text-red-500 text-sm mt-2 flex items-center gap-1">
+                <span className="inline-block w-1 h-1 rounded-full bg-red-500 animate-pulse" />
+                {error}
+              </p>
+            )}
+
             {/* Submit Button */}
             <button
               type="submit"
               disabled={isLoading}
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-500 text-white rounded-lg hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-zinc-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-6"
             >
-              <span>Sign in</span>
+              {isLoading ? 'Signing in...' : 'Sign in'}
               <ArrowRight className="w-5 h-5" />
             </button>
 
