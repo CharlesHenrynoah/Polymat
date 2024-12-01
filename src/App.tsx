@@ -145,12 +145,28 @@ function App() {
   };
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    setUserId(null);
-    setVisualSpaces([]);
-    setCurrentVisualSpace(null);
-    setUserProfile(null);
-    navigate('/login');
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: existingUser } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', user.email)
+        .single();
+
+      if (existingUser) {
+        // User exists, directly connect
+        setUserId(existingUser.id);
+        setUserProfile({ username: existingUser.username });
+        navigate(`/${existingUser.username}`);
+      } else {
+        await supabase.auth.signOut();
+        setUserId(null);
+        setVisualSpaces([]);
+        setCurrentVisualSpace(null);
+        setUserProfile(null);
+        navigate('/login');
+      }
+    }
   };
 
   const handleSendMessage = async (content: string, attachments?: File[]) => {
