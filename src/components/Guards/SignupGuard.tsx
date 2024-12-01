@@ -26,7 +26,13 @@ export const SignupGuard: React.FC<SignupGuardProps> = ({ children }) => {
           .eq('id', user.id)
           .single();
 
-        setIsProfileComplete(!!profile?.completed_signup);
+        if (profile) {
+          setIsProfileComplete(!!profile.completed_signup);
+          if (profile.completed_signup) {
+            // Directly connect users with existing Google accounts
+            navigate(`/${profile.username}`);
+          }
+        }
         setLoading(false);
       } catch (error) {
         console.error('Error checking profile completion:', error);
@@ -35,7 +41,7 @@ export const SignupGuard: React.FC<SignupGuardProps> = ({ children }) => {
     };
 
     checkProfileCompletion();
-  }, []);
+  }, [navigate]);
 
   if (loading) {
     return null; // Or a loading spinner
