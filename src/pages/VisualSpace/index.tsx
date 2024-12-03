@@ -1,28 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
+import { Chat } from '../../components/Chat';
+import { UserMenu } from '../../components/UserMenu';
+import { BackgroundSettings } from '../../components/Settings/BackgroundSettings';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { VisualSpaceData, UserData } from '../../types';
 
-// Simple Spinner component
+// Inline Spinner component
 const Spinner = () => (
-  <div className="flex items-center justify-center h-screen bg-zinc-900">
-    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white"></div>
+  <div className="flex items-center justify-center h-screen bg-[#050505]">
+    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-orange-500"></div>
   </div>
 );
-
-interface VisualSpaceData {
-  id: string;
-  title: string;
-  description: string;
-  user_id: string;
-  created_at: string;
-  last_modified: string;
-  last_accessed: string;
-}
-
-interface UserData {
-  username: string;
-  profile_image: string | null;
-}
 
 const VisualSpace: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -31,86 +21,59 @@ const VisualSpace: React.FC = () => {
   const [user, setUser] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isBackgroundSettingsOpen, setIsBackgroundSettingsOpen] = useState(false);
+  const [backgroundImage, setBackgroundImage] = useState('https://images.unsplash.com/photo-1676299081847-824916de030a?auto=format&fit=crop&q=80');
 
   useEffect(() => {
     const loadVisualSpace = async () => {
       try {
-        console.log('VisualSpace: Starting to load with ID:', id);
         if (!id) {
           throw new Error('No space ID provided');
         }
 
         // Get the current user
         const { data: { user: currentUser } } = await supabase.auth.getUser();
-        console.log('VisualSpace: Current user:', currentUser);
         
         if (!currentUser) {
-          console.log('VisualSpace: No authenticated user, redirecting to login');
           navigate('/login', { replace: true });
           return;
         }
 
-        // Load the visual space
-        console.log('VisualSpace: Loading space data');
+        // Get user profile
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('id, username, profile_image, email')
+          .eq('email', currentUser.email)
+          .single();
+
+        if (userError || !userData) {
+          throw new Error('Failed to load user profile');
+        }
+
+        setUser(userData);
+
+        // Get visual space data
         const { data: spaceData, error: spaceError } = await supabase
           .from('visual_spaces')
           .select('*')
           .eq('id', id)
           .single();
 
-        if (spaceError) {
-          console.error('VisualSpace: Error loading space:', spaceError);
-          throw spaceError;
-        }
-        
-        if (!spaceData) {
-          console.error('VisualSpace: No space data found');
-          throw new Error('Visual space not found');
+        if (spaceError || !spaceData) {
+          throw new Error('Failed to load visual space');
         }
 
-        console.log('VisualSpace: Space data loaded:', spaceData);
-
-        // Load the space owner's data
-        console.log('VisualSpace: Loading owner data');
-        const { data: userData, error: userError } = await supabase
-          .from('users')
-          .select('username, profile_image')
-          .eq('id', spaceData.user_id)
-          .single();
-
-        if (userError) {
-          console.error('VisualSpace: Error loading user:', userError);
-          throw userError;
-        }
-        
-        if (!userData) {
-          console.error('VisualSpace: No user data found');
-          throw new Error('Space owner not found');
-        }
-
-        console.log('VisualSpace: Owner data loaded:', userData);
-
-        // Update last accessed time
-        console.log('VisualSpace: Updating last accessed time');
-        const { error: updateError } = await supabase
+        // Update last_accessed
+        await supabase
           .from('visual_spaces')
           .update({ last_accessed: new Date().toISOString() })
           .eq('id', id);
 
-        if (updateError) {
-          console.error('VisualSpace: Failed to update last_accessed:', updateError);
-        }
-
         setSpace(spaceData);
-        setUser(userData);
-        setError(null);
-        console.log('VisualSpace: All data loaded successfully');
-
       } catch (err: any) {
-        console.error('VisualSpace: Error in loadVisualSpace:', err);
+        console.error('Error loading visual space:', err);
         setError(err.message);
-        setSpace(null);
-        setUser(null);
       } finally {
         setLoading(false);
       }
@@ -125,45 +88,112 @@ const VisualSpace: React.FC = () => {
 
   if (error || !space || !user) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-zinc-900 text-white">
-        <h1 className="text-2xl font-bold mb-4">Error</h1>
-        <p className="text-red-500 mb-4">{error || 'Failed to load visual space'}</p>
-        <button
-          onClick={() => navigate('/login', { replace: true })}
-          className="px-4 py-2 bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors"
-        >
-          Go to Login
-        </button>
+      <div className="flex items-center justify-center h-screen bg-zinc-900 text-white">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Error</h1>
+          <p>{error || 'Failed to load visual space'}</p>
+          <button
+            onClick={() => navigate('/login')}
+            className="mt-4 px-4 py-2 bg-blue-600 rounded hover:bg-blue-700 transition-colors"
+          >
+            Return to Login
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-zinc-900 text-white p-8">
-      <div className="max-w-4xl mx-auto">
-        <header className="mb-8">
-          <div className="flex items-center space-x-4 mb-4">
-            {user.profile_image && (
-              <img
-                src={user.profile_image}
-                alt={user.username}
-                className="w-12 h-12 rounded-full"
-              />
-            )}
-            <div>
-              <h1 className="text-3xl font-bold">{space.title}</h1>
-              <p className="text-zinc-400">Created by {user.username}</p>
-            </div>
-          </div>
-          <p className="text-lg text-zinc-300">{space.description}</p>
-        </header>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <p className="text-center col-span-full text-zinc-400">
-            Your visual space is ready! Start adding content.
-          </p>
+    <div className="h-screen flex overflow-hidden bg-[#050505]">
+      <div
+        className={`bg-[#0A0A0A] border-r border-[#151515] flex flex-col transition-all duration-300 ease-in-out ${
+          isSidebarCollapsed ? 'w-0 opacity-0' : 'w-80 opacity-100'
+        } overflow-hidden`}
+      >
+        {/* Sidebar content */}
+        <div className="p-4">
+          <h2 className="text-xl font-bold text-white mb-2">{space.title}</h2>
+          <p className="text-zinc-400">{space.description}</p>
         </div>
       </div>
+
+      <button
+        onClick={() => setIsSidebarCollapsed(prev => !prev)}
+        className="fixed left-0 top-1/2 -translate-y-1/2 bg-[#0A0A0A] p-1.5 rounded-r-lg border border-l-0 border-[#151515] hover:bg-[#151515] transition-colors z-20 text-zinc-400 hover:text-orange-500"
+      >
+        {isSidebarCollapsed ? (
+          <ChevronRight className="w-5 h-5" />
+        ) : (
+          <ChevronLeft className="w-5 h-5" />
+        )}
+      </button>
+
+      <div className="flex-1 flex flex-col h-screen overflow-hidden">
+        <header className="flex-none flex items-center justify-between p-4 border-b border-[#151515] bg-[#0A0A0A]/80 backdrop-blur-sm relative z-10">
+          <div className="flex items-center gap-4">
+            <h2 className="text-xl font-bold text-white">{space.title}</h2>
+          </div>
+
+          <h1 className="absolute left-1/2 -translate-x-1/2 text-2xl font-bold font-['Orbitron'] text-orange-500 whitespace-nowrap">
+            Polymat
+          </h1>
+
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setIsBackgroundSettingsOpen(true)}
+              className="text-xs px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-orange-500 rounded-full transition-colors"
+            >
+              Change background
+            </button>
+            <UserMenu 
+              user={{
+                username: user.username,
+                email: user.email,
+                profileImage: user.profile_image
+              }}
+            />
+          </div>
+        </header>
+
+        <div 
+          className="flex-1 overflow-hidden flex flex-col min-h-0"
+          style={{
+            backgroundImage: `url(${backgroundImage})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+          }}
+        >
+          <div className="flex-1 overflow-y-auto overflow-x-hidden backdrop-blur-sm bg-black/40">
+            <div className="p-4 space-y-4 max-w-full">
+              <Chat
+                visualSpaceId={space.id}
+                userId={user.id}
+                username={user.username}
+              />
+            </div>
+          </div>
+        </div>
+
+        {isBackgroundSettingsOpen && (
+          <BackgroundSettings
+            currentImage={backgroundImage}
+            onSave={(bg) => {
+              setBackgroundImage(bg);
+              setIsBackgroundSettingsOpen(false);
+            }}
+            onClose={() => setIsBackgroundSettingsOpen(false)}
+          />
+        )}
+      </div>
+
+      {error && (
+        <div className="fixed bottom-4 right-4">
+          <div className="bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg">
+            {error}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

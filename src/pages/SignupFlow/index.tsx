@@ -47,15 +47,19 @@ export function SignupFlow({ startAtLevel2 = false }: SignupFlowProps) {
 
   const handleLevel2Complete = async (data: any) => {
     try {
+      console.log('Starting handleLevel2Complete with data:', data);
       setLoading(true);
       setError(null);
 
       const { data: { user } } = await supabase.auth.getUser();
+      console.log('Current user:', user);
+      
       if (!user) {
         throw new Error('No authenticated user found');
       }
 
       // Create user profile in users table
+      console.log('Creating user profile...');
       const { data: userProfile, error: profileError } = await supabase
         .from('users')
         .insert({
@@ -83,8 +87,10 @@ export function SignupFlow({ startAtLevel2 = false }: SignupFlowProps) {
       if (!userProfile) {
         throw new Error('Failed to create user profile: No profile returned');
       }
+      console.log('User profile created successfully:', userProfile);
 
       // Create visual space using the numeric ID from the users table
+      console.log('Creating visual space...');
       const { data: visualSpace, error: spaceError } = await supabase
         .from('visual_spaces')
         .insert([
@@ -108,9 +114,9 @@ export function SignupFlow({ startAtLevel2 = false }: SignupFlowProps) {
       if (!visualSpace) {
         throw new Error('Failed to create visual space');
       }
+      console.log('Visual space created successfully:', visualSpace);
 
-      console.log('Profile and visual space created:', { userProfile, visualSpace });
-
+      console.log('Navigating to:', `/space/${visualSpace.id}`);
       // Navigate to the new visual space
       navigate(`/space/${visualSpace.id}`, { replace: true });
     } catch (err: any) {

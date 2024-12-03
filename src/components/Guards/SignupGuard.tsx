@@ -36,80 +36,54 @@ export const SignupGuard: React.FC<SignupGuardProps> = ({ children }) => {
           return;
         }
 
-        const isGoogleUser = user.app_metadata.provider === 'google';
-
-        // Vérifier si l'email existe déjà dans la base de données
-        const { data: existingUser } = await supabase
+        // Vérifier si l'utilisateur a un profil complet dans la table users
+        const { data: userProfile } = await supabase
           .from('users')
-          .select('email')
+          .select('username')
           .eq('email', user.email)
           .single();
 
-        if (existingUser) {
-          // L'email existe déjà -> redirection vers signup level 2
-          navigate('/signup/level2', { 
-            replace: true,
-            state: { message: 'Un compte existe déjà avec cet email. Veuillez compléter votre profil.' }
-          });
-          return;
-        }
-
-        // Email n'existe pas -> créer un nouveau profil
-        const { error: createError } = await supabase
-          .from('users')
-          .insert({
-            id: user.id,
-            email: user.email,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            is_active: true,
-            role: 'user'
-          });
-
-        if (createError) {
-          console.error('Error creating user:', createError);
-          return;
-        }
-
-        // Rediriger vers SignupLevel2 pour compléter le profil
-        if (location.pathname !== '/signup/level2') {
-          navigate('/signup/level2', { replace: true });
-        }
+        const isGoogleUser = user.app_metadata.provider === 'google';
+        const hasProfile = !!userProfile;
 
         setAuthState({
           isAuthenticated: true,
-          hasProfile: false,
+          hasProfile,
+          username: userProfile?.username,
           isExistingGoogleUser: isGoogleUser
         });
-        setLoading(false);
 
+        // Si l'utilisateur n'a pas de profil et n'est pas déjà sur la page signup
+        if (!hasProfile && !location.pathname.includes('/signup')) {
+          navigate('/signup/level2', { replace: true });
+          return;
+        }
+
+        setLoading(false);
       } catch (error) {
-        console.error('Error checking auth status:', error);
+        console.error('Error in SignupGuard:', error);
+        setAuthState({
+          isAuthenticated: false,
+          hasProfile: false,
+          isExistingGoogleUser: false
+        });
         setLoading(false);
       }
     };
 
     checkAuthAndProfile();
-  }, [navigate, location.pathname]);
+  }, [location.pathname, navigate]);
 
   if (loading) {
     return null;
   }
 
-  // Non authentifié -> page principale
-  if (!authState.isAuthenticated && location.pathname !== '/' && location.pathname !== '/login') {
-    return <Navigate to="/" replace />;
+  if (!authState.isAuthenticated) {
+    return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
-  // Authentifié mais sans profil -> level2
-  if (authState.isAuthenticated && !authState.hasProfile && location.pathname !== '/signup/level2') {
+  if (!authState.hasProfile && !location.pathname.includes('/signup')) {
     return <Navigate to="/signup/level2" replace />;
-  }
-
-  // Authentifié avec profil -> espace visuel
-  if (authState.isAuthenticated && authState.hasProfile && authState.username && 
-      location.pathname !== `/${authState.username}`) {
-    return <Navigate to={`/${authState.username}`} replace />;
   }
 
   return <>{children}</>;
