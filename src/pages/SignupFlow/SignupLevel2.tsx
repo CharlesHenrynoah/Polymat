@@ -6,42 +6,43 @@ import ErrorBoundary from '../../components/ErrorBoundary';
 import './scrollbar.css';
 
 interface SignupLevel2Props {
-  onBack: () => void;
+  onBack?: () => void;
   onComplete: (data: {
-    photo?: File;
     username: string;
     firstName: string;
     lastName: string;
     description: string;
-    visualSpaceId: string;
+    photo?: string;
+    visualSpaceId?: string;
   }) => void;
+  isLoading?: boolean;
 }
 
 interface FormData {
-  photo?: File;
-  photoPreview: string;
+  acceptTerms: boolean | undefined;
   username: string;
   firstName: string;
   lastName: string;
   description: string;
-  acceptTerms: boolean;
+  photo?: string;
 }
 
-export const SignupLevel2: React.FC<SignupLevel2Props> = ({ onBack, onComplete }) => {
+export const SignupLevel2: React.FC<SignupLevel2Props> = ({ onBack, onComplete, isLoading: parentIsLoading = false }) => {
   const [formData, setFormData] = useState<FormData>({
-    photo: undefined,
-    photoPreview: '',
+    acceptTerms: undefined,
     username: '',
     firstName: '',
     lastName: '',
     description: '',
-    acceptTerms: false,
+    photo: ''
   });
 
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [localIsLoading, setLocalIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+
+  const isLoading = parentIsLoading || localIsLoading;
 
   const isFormComplete = () => {
     return (
@@ -49,7 +50,7 @@ export const SignupLevel2: React.FC<SignupLevel2Props> = ({ onBack, onComplete }
       formData.firstName !== '' &&
       formData.lastName !== '' &&
       formData.description !== '' &&
-      formData.acceptTerms
+      formData.photo !== ''
     );
   };
 
@@ -68,17 +69,32 @@ export const SignupLevel2: React.FC<SignupLevel2Props> = ({ onBack, onComplete }
     });
   };
 
+  const checkUsernameAvailability = async (username: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('username')
+        .eq('username', username.trim())
+        .single();
+
+      if (error && error.code !== 'PGRST116') { // PGRST116 means no rows returned
+        console.error('Error checking username:', error);
+        throw new Error('Error checking username availability');
+      }
+
+      return !data; // Return true if username is available (no data found)
+    } catch (err) {
+      console.error('Error in checkUsernameAvailability:', err);
+      throw err;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    setError(null);
 
     try {
-      console.log('SignupLevel2: Starting form submission');
-      if (!isFormComplete()) {
-        setError('Please complete all required fields');
-        return;
-      }
+      setLocalIsLoading(true);
+      setError(null);
 
       // Get current authenticated user
       const { data: { user } } = await supabase.auth.getUser();
@@ -89,117 +105,28 @@ export const SignupLevel2: React.FC<SignupLevel2Props> = ({ onBack, onComplete }
         return;
       }
 
-      // Convert photo to base64 if exists
-      let photoBase64 = null;
-      if (formData.photo) {
-        try {
-          console.log('SignupLevel2: Converting photo to base64');
-          photoBase64 = await convertToBase64(formData.photo);
-        } catch (error) {
-          console.error('Error converting photo to base64:', error);
-          throw new Error('Failed to process profile photo');
-        }
-      }
-
-      // Check if username already exists
-      console.log('SignupLevel2: Checking if username exists:', formData.username);
-      const { data: existingUser } = await supabase
-        .from('users')
-        .select('username')
-        .eq('username', formData.username.trim())
-        .single();
-
-      if (existingUser) {
-        console.log('SignupLevel2: Username already taken');
-        setError('Username already taken');
+      // Check if username already exists in users table
+      const isUsernameAvailable = await checkUsernameAvailability(formData.username);
+      if (!isUsernameAvailable) {
+        setError('This username is already taken. Please choose another one.');
         return;
       }
 
-      // Prepare user profile data
-      console.log('SignupLevel2: Preparing user profile data');
-      const profileData = {
-        email: user.email,
-        username: formData.username.trim(),
-        first_name: formData.firstName.trim(),
-        last_name: formData.lastName.trim(),
-        description: formData.description.trim(),
-        profile_image: photoBase64,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        last_login: new Date().toISOString(),
-        is_active: true,
-        role: 'user',
-        preferences: JSON.stringify({
-          terms_accepted: formData.acceptTerms
-        })
-      };
-
-      // Insert user profile
-      console.log('SignupLevel2: Inserting user profile');
-      const { data: insertedProfile, error: profileError } = await supabase
-        .from('users')
-        .insert(profileData)
-        .select()
-        .single();
-
-      if (profileError) {
-        console.error('SignupLevel2: Profile insertion error:', profileError);
-        throw profileError;
-      }
-
-      if (!insertedProfile) {
-        console.error('SignupLevel2: No profile was inserted');
-        throw new Error('Failed to create user profile');
-      }
-
-      console.log('SignupLevel2: Profile inserted successfully:', insertedProfile);
-
-      // Create default VisualSpace
-      console.log('SignupLevel2: Creating default visual space');
-      const { data: visualSpace, error: spaceError } = await supabase
-        .from('visual_spaces')
-        .insert({
-          title: `${formData.username}'s First Space`,
-          description: 'My first personal visual space',
-          user_id: insertedProfile.id,
-          created_at: new Date().toISOString(),
-          last_modified: new Date().toISOString(),
-          last_accessed: new Date().toISOString()
-        })
-        .select()
-        .single();
-
-      if (spaceError) {
-        console.error('SignupLevel2: Visual space creation error:', spaceError);
-        throw spaceError;
-      }
-
-      if (!visualSpace) {
-        throw new Error('Failed to create visual space');
-      }
-
-      console.log('SignupLevel2: Visual space created successfully:', visualSpace);
-
       // Call onComplete with form data
-      onComplete({
-        username: formData.username,
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        description: formData.description,
+      await onComplete({
+        username: formData.username.trim(),
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        description: formData.description.trim(),
         photo: formData.photo,
         visualSpaceId: ''
       });
 
-      console.log('SignupLevel2: Navigating to visual space:', visualSpace.id);
-      // Attendre un peu avant la navigation pour s'assurer que tout est bien enregistré
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      navigate(`/space/${visualSpace.id}`, { replace: true });
-
     } catch (error: any) {
-      console.error('SignupLevel2: Error during profile creation:', error);
-      setError(error.message || 'An error occurred during submission');
+      console.error('Error in form submission:', error);
+      setError(error.message || 'An error occurred during signup. Please try again.');
     } finally {
-      setIsLoading(false);
+      setLocalIsLoading(false);
     }
   };
 
@@ -210,8 +137,7 @@ export const SignupLevel2: React.FC<SignupLevel2Props> = ({ onBack, onComplete }
       reader.onloadend = () => {
         setFormData((prev) => ({
           ...prev,
-          photo: file,
-          photoPreview: reader.result as string,
+          photo: reader.result as string,
         }));
       };
       reader.readAsDataURL(file);
@@ -271,9 +197,9 @@ export const SignupLevel2: React.FC<SignupLevel2Props> = ({ onBack, onComplete }
                   onClick={() => fileInputRef.current?.click()}
                   className="w-20 h-20 rounded-full bg-zinc-800 flex items-center justify-center cursor-pointer hover:bg-zinc-700 transition-colors"
                 >
-                  {formData.photoPreview ? (
+                  {formData.photo ? (
                     <img
-                      src={formData.photoPreview}
+                      src={formData.photo}
                       alt="Profile"
                       className="w-full h-full rounded-full object-cover"
                     />
@@ -374,15 +300,13 @@ export const SignupLevel2: React.FC<SignupLevel2Props> = ({ onBack, onComplete }
                   type="submit"
                   disabled={!isFormComplete() || isLoading}
                   className={`flex-1 flex items-center justify-center space-x-2 px-4 py-2 text-white rounded-lg transition-all duration-200 bg-orange-500 ${isFormComplete() && !isLoading
-                      ? 'hover:bg-orange-600'
-                      : 'opacity-50 cursor-not-allowed'
+                    ? 'hover:bg-orange-600'
+                    : 'opacity-50 cursor-not-allowed'
                     }`}
                 >
                   <span>Complete Profile</span>
-                  {isLoading ? (
-                    <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                  ) : (
-                    <ArrowRight className="w-5 h-5" />
+                  {isLoading && (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
                   )}
                 </button>
               </div>

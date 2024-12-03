@@ -9,17 +9,13 @@ import './scrollbar.css';
 import { PasswordRequirements } from '../../types/userProfile';
 
 interface SignupLevel1Props {
-  onNext: (data: {
-    email: string;
-    password: string;
-    googleAuth?: boolean;
-  }) => void;
-  onBack: () => void;
+  onComplete: (data: { email: string; password: string }) => void;
+  isLoading?: boolean;
 }
 
-export const SignupLevel1: React.FC<SignupLevel1Props> = ({ }) => {
+export const SignupLevel1: React.FC<SignupLevel1Props> = ({ onComplete, isLoading = false }) => {
   const navigate = useNavigate();
-  const [isLoading, setIsLoading] = useState(false);
+  const [localIsLoading, setLocalIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -33,12 +29,12 @@ export const SignupLevel1: React.FC<SignupLevel1Props> = ({ }) => {
     setErrors({
       auth: customMessage || error?.message || "Une erreur s'est produite"
     });
-    setIsLoading(false);
+    setLocalIsLoading(false);
   };
 
   const handleGoogleSignup = async () => {
     try {
-      setIsLoading(true);
+      setLocalIsLoading(true);
       setErrors({});
 
       const { data, error } = await supabase.auth.signInWithOAuth({
@@ -280,7 +276,7 @@ export const SignupLevel1: React.FC<SignupLevel1Props> = ({ }) => {
             {/* Continue Button */}
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || localIsLoading}
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-500 text-white rounded-lg hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-zinc-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-6"
             >
               <span>Continue</span>
@@ -301,7 +297,7 @@ export const SignupLevel1: React.FC<SignupLevel1Props> = ({ }) => {
             <button
               type="button"
               onClick={handleGoogleSignup}
-              disabled={isLoading}
+              disabled={isLoading || localIsLoading}
               className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white hover:bg-gray-50 text-zinc-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-zinc-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
             >
               <FcGoogle className="w-5 h-5" />

@@ -3,159 +3,145 @@ import { useNavigate } from 'react-router-dom';
 import { SignupLevel1 } from './SignupLevel1';
 import { SignupLevel2 } from './SignupLevel2';
 import { supabase } from '../../lib/supabase';
+import ErrorBoundary from '../../components/ErrorBoundary';
 
 interface SignupFlowProps {
   startAtLevel2?: boolean;
 }
 
-export const SignupFlow: React.FC<SignupFlowProps> = ({ startAtLevel2 = false }) => {
-  const [level, setLevel] = useState(startAtLevel2 ? 2 : 1);
+export function SignupFlow({ startAtLevel2 = false }: SignupFlowProps) {
   const navigate = useNavigate();
+  const [currentLevel, setCurrentLevel] = useState(startAtLevel2 ? 2 : 1);
+  const [signupData, setSignupData] = useState<any>({});
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleLevel1Complete = async (data: {
-    email: string;
-    password: string;
-    googleAuth?: boolean;
-  }) => {
-    if (data.googleAuth) {
-      setLevel(2);
-      return;
-    }
-
+  const handleLevel1Complete = async (data: any) => {
     try {
-      const { error: signUpError } = await supabase.auth.signUp({
+      setLoading(true);
+      setError(null);
+
+      const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
       });
 
-      if (signUpError) throw signUpError;
+      if (signUpError) {
+        throw signUpError;
+      }
 
-      setLevel(2);
+      if (!authData.user) {
+        throw new Error('No user data returned after signup');
+      }
+
+      setSignupData({ ...signupData, ...data });
+      setCurrentLevel(2);
       navigate('/signup/level2', { replace: true });
-    } catch (error: any) {
-      console.error('Signup error:', error.message);
+    } catch (err: any) {
+      console.error('Error in handleLevel1Complete:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleLevel2Complete = async (data: any) => {
-    console.log('SignupFlow: Starting handleLevel2Complete with data:', data);
     try {
+      setLoading(true);
+      setError(null);
+
       const { data: { user } } = await supabase.auth.getUser();
-      console.log('SignupFlow: Current user:', user);
-      
       if (!user) {
-        console.error('SignupFlow: No authenticated user found');
-        return;
+        throw new Error('No authenticated user found');
       }
 
-      // Check if username exists for other users
-      console.log('SignupFlow: Checking username availability:', data.username);
-      const { data: existingUser } = await supabase
+      // Create user profile in users table
+      const { data: userProfile, error: profileError } = await supabase
         .from('users')
-        .select('username')
-        .eq('username', data.username)
-        .neq('id', user.id)
-        .single();
-
-      if (existingUser) {
-        console.error('SignupFlow: Username already exists');
-        return;
-      }
-
-      // Prepare user data
-      console.log('SignupFlow: Preparing user data');
-      const userData = {
-        email: user.email,
-        username: data.username,
-        first_name: data.firstName,
-        last_name: data.lastName,
-        description: data.description,
-        profile_image: data.photo,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        last_login: new Date().toISOString(),
-        is_active: true,
-        role: 'user',
-        preferences: JSON.stringify({
-          terms_accepted: true
+        .insert({
+          email: user.email,
+          username: data.username.trim(),
+          first_name: data.firstName?.trim(),
+          last_name: data.lastName?.trim(),
+          description: data.description?.trim(),
+          profile_image: data.photo,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          last_login: new Date().toISOString(),
+          is_active: true,
+          role: 'user',
+          preferences: {}
         })
-      };
-
-      console.log('SignupFlow: Updating user profile');
-      const { error: updateError } = await supabase
-        .from('users')
-        .update(userData)
-        .eq('email', user.email);
-
-      if (updateError) {
-        console.error('SignupFlow: User update error:', updateError);
-        throw updateError;
-      }
-
-      console.log('SignupFlow: User profile updated successfully');
-
-      // Get the user's ID
-      console.log('SignupFlow: Getting user ID');
-      const { data: userProfile, error: userError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('email', user.email)
+        .select('id, username')
         .single();
 
-      if (userError) {
-        console.error('SignupFlow: Error getting user ID:', userError);
-        throw userError;
+      if (profileError) {
+        console.error('Error creating user profile:', profileError.message, profileError.details, profileError.hint);
+        throw new Error(`Failed to create user profile: ${profileError.message}`);
       }
 
       if (!userProfile) {
-        console.error('SignupFlow: User profile not found');
-        throw new Error('User profile not found');
+        throw new Error('Failed to create user profile: No profile returned');
       }
 
-      console.log('SignupFlow: User profile found:', userProfile);
-
-      // Create default VisualSpace
-      console.log('SignupFlow: Creating default visual space');
+      // Create visual space using the numeric ID from the users table
       const { data: visualSpace, error: spaceError } = await supabase
         .from('visual_spaces')
-        .insert([{
-          title: `${data.username}'s First Space`,
-          description: 'My first personal visual space',
-          user_id: userProfile.id,
-          created_at: new Date().toISOString(),
-          last_modified: new Date().toISOString(),
-          last_accessed: new Date().toISOString()
-        }])
+        .insert([
+          {
+            title: `${data.username.trim()}'s Space`,
+            description: 'My Visual Space',
+            user_id: userProfile.id,
+            created_at: new Date().toISOString(),
+            last_modified: new Date().toISOString(),
+            last_accessed: new Date().toISOString()
+          },
+        ])
         .select()
         .single();
 
       if (spaceError) {
-        console.error('SignupFlow: Visual space creation error:', spaceError);
+        console.error('Error creating visual space:', spaceError.message, spaceError.details);
         throw spaceError;
       }
 
       if (!visualSpace) {
-        console.error('SignupFlow: Failed to create visual space');
         throw new Error('Failed to create visual space');
       }
 
-      console.log('SignupFlow: Visual space created successfully:', visualSpace);
-      return visualSpace;
+      console.log('Profile and visual space created:', { userProfile, visualSpace });
 
-    } catch (error: any) {
-      console.error('SignupFlow: Profile update error:', error.message);
-      throw error;
+      // Navigate to the new visual space
+      navigate(`/space/${visualSpace.id}`, { replace: true });
+    } catch (err: any) {
+      console.error('Error in handleLevel2Complete:', err);
+      setError(err.message || 'An unexpected error occurred');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleBack = () => {
-    setLevel(1);
-    navigate('/', { replace: true });
-  };
+  return (
+    <ErrorBoundary>
+      {error && (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg">
+          {error}
+        </div>
+      )}
 
-  return level === 1 ? (
-    <SignupLevel1 onNext={handleLevel1Complete} onBack={() => navigate('/')} />
-  ) : (
-    <SignupLevel2 onComplete={handleLevel2Complete} onBack={handleBack} />
+      {currentLevel === 1 && (
+        <SignupLevel1
+          onComplete={handleLevel1Complete}
+          isLoading={loading}
+        />
+      )}
+
+      {currentLevel === 2 && (
+        <SignupLevel2
+          onComplete={handleLevel2Complete}
+          isLoading={loading}
+        />
+      )}
+    </ErrorBoundary>
   );
-};
+}
