@@ -41,6 +41,7 @@ export const SignupLevel2: React.FC<SignupLevel2Props> = ({ onBack, onComplete }
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const navigate = useNavigate();
 
   const isFormComplete = () => {
     return (
@@ -73,6 +74,7 @@ export const SignupLevel2: React.FC<SignupLevel2Props> = ({ onBack, onComplete }
     setError(null);
 
     try {
+      console.log('SignupLevel2: Starting form submission');
       if (!isFormComplete()) {
         setError('Please complete all required fields');
         return;
@@ -80,6 +82,8 @@ export const SignupLevel2: React.FC<SignupLevel2Props> = ({ onBack, onComplete }
 
       // Get current authenticated user
       const { data: { user } } = await supabase.auth.getUser();
+      console.log('SignupLevel2: Current user:', user);
+
       if (!user) {
         setError('No authenticated user found');
         return;
@@ -89,6 +93,7 @@ export const SignupLevel2: React.FC<SignupLevel2Props> = ({ onBack, onComplete }
       let photoBase64 = null;
       if (formData.photo) {
         try {
+          console.log('SignupLevel2: Converting photo to base64');
           photoBase64 = await convertToBase64(formData.photo);
         } catch (error) {
           console.error('Error converting photo to base64:', error);
@@ -97,6 +102,7 @@ export const SignupLevel2: React.FC<SignupLevel2Props> = ({ onBack, onComplete }
       }
 
       // Check if username already exists
+      console.log('SignupLevel2: Checking if username exists:', formData.username);
       const { data: existingUser } = await supabase
         .from('users')
         .select('username')
@@ -104,11 +110,13 @@ export const SignupLevel2: React.FC<SignupLevel2Props> = ({ onBack, onComplete }
         .single();
 
       if (existingUser) {
+        console.log('SignupLevel2: Username already taken');
         setError('Username already taken');
         return;
       }
 
       // Prepare user profile data
+      console.log('SignupLevel2: Preparing user profile data');
       const profileData = {
         email: user.email,
         username: formData.username.trim(),
@@ -127,6 +135,7 @@ export const SignupLevel2: React.FC<SignupLevel2Props> = ({ onBack, onComplete }
       };
 
       // Insert user profile
+      console.log('SignupLevel2: Inserting user profile');
       const { data: insertedProfile, error: profileError } = await supabase
         .from('users')
         .insert(profileData)
@@ -134,14 +143,19 @@ export const SignupLevel2: React.FC<SignupLevel2Props> = ({ onBack, onComplete }
         .single();
 
       if (profileError) {
+        console.error('SignupLevel2: Profile insertion error:', profileError);
         throw profileError;
       }
 
       if (!insertedProfile) {
+        console.error('SignupLevel2: No profile was inserted');
         throw new Error('Failed to create user profile');
       }
 
+      console.log('SignupLevel2: Profile inserted successfully:', insertedProfile);
+
       // Create default VisualSpace
+      console.log('SignupLevel2: Creating default visual space');
       const { data: visualSpace, error: spaceError } = await supabase
         .from('visual_spaces')
         .insert({
@@ -156,6 +170,7 @@ export const SignupLevel2: React.FC<SignupLevel2Props> = ({ onBack, onComplete }
         .single();
 
       if (spaceError) {
+        console.error('SignupLevel2: Visual space creation error:', spaceError);
         throw spaceError;
       }
 
@@ -163,18 +178,25 @@ export const SignupLevel2: React.FC<SignupLevel2Props> = ({ onBack, onComplete }
         throw new Error('Failed to create visual space');
       }
 
-      // Call onComplete with form data and visual space
+      console.log('SignupLevel2: Visual space created successfully:', visualSpace);
+
+      // Call onComplete with form data
       onComplete({
         username: formData.username,
         firstName: formData.firstName,
         lastName: formData.lastName,
         description: formData.description,
         photo: formData.photo,
-        visualSpaceId: visualSpace.id
+        visualSpaceId: ''
       });
 
+      console.log('SignupLevel2: Navigating to visual space:', visualSpace.id);
+      // Attendre un peu avant la navigation pour s'assurer que tout est bien enregistré
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      navigate(`/space/${visualSpace.id}`, { replace: true });
+
     } catch (error: any) {
-      console.error('Error during profile creation:', error);
+      console.error('SignupLevel2: Error during profile creation:', error);
       setError(error.message || 'An error occurred during submission');
     } finally {
       setIsLoading(false);
@@ -198,7 +220,7 @@ export const SignupLevel2: React.FC<SignupLevel2Props> = ({ onBack, onComplete }
 
   return (
     <ErrorBoundary>
-      <div 
+      <div
         className="min-h-screen flex items-center justify-center bg-black relative overflow-y-auto scrollbar-hide"
         style={{
           backgroundImage: 'url(/src/bg/eso1509a-1.jpg)',
@@ -351,11 +373,10 @@ export const SignupLevel2: React.FC<SignupLevel2Props> = ({ onBack, onComplete }
                 <button
                   type="submit"
                   disabled={!isFormComplete() || isLoading}
-                  className={`flex-1 flex items-center justify-center space-x-2 px-4 py-2 text-white rounded-lg transition-all duration-200 bg-orange-500 ${
-                    isFormComplete() && !isLoading
+                  className={`flex-1 flex items-center justify-center space-x-2 px-4 py-2 text-white rounded-lg transition-all duration-200 bg-orange-500 ${isFormComplete() && !isLoading
                       ? 'hover:bg-orange-600'
                       : 'opacity-50 cursor-not-allowed'
-                  }`}
+                    }`}
                 >
                   <span>Complete Profile</span>
                   {isLoading ? (

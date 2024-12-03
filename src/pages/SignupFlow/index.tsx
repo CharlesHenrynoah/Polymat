@@ -38,14 +38,18 @@ export const SignupFlow: React.FC<SignupFlowProps> = ({ startAtLevel2 = false })
   };
 
   const handleLevel2Complete = async (data: any) => {
+    console.log('SignupFlow: Starting handleLevel2Complete with data:', data);
     try {
       const { data: { user } } = await supabase.auth.getUser();
+      console.log('SignupFlow: Current user:', user);
+      
       if (!user) {
-        console.error('No authenticated user found');
+        console.error('SignupFlow: No authenticated user found');
         return;
       }
 
       // Check if username exists for other users
+      console.log('SignupFlow: Checking username availability:', data.username);
       const { data: existingUser } = await supabase
         .from('users')
         .select('username')
@@ -54,11 +58,12 @@ export const SignupFlow: React.FC<SignupFlowProps> = ({ startAtLevel2 = false })
         .single();
 
       if (existingUser) {
-        console.error('Username already exists');
+        console.error('SignupFlow: Username already exists');
         return;
       }
 
       // Prepare user data
+      console.log('SignupFlow: Preparing user data');
       const userData = {
         email: user.email,
         username: data.username,
@@ -76,18 +81,21 @@ export const SignupFlow: React.FC<SignupFlowProps> = ({ startAtLevel2 = false })
         })
       };
 
-      // Update user profile instead of insert
+      console.log('SignupFlow: Updating user profile');
       const { error: updateError } = await supabase
         .from('users')
         .update(userData)
         .eq('email', user.email);
 
       if (updateError) {
-        console.error('User update error:', updateError);
+        console.error('SignupFlow: User update error:', updateError);
         throw updateError;
       }
 
-      // Get the user's numeric ID
+      console.log('SignupFlow: User profile updated successfully');
+
+      // Get the user's ID
+      console.log('SignupFlow: Getting user ID');
       const { data: userProfile, error: userError } = await supabase
         .from('users')
         .select('id')
@@ -95,38 +103,48 @@ export const SignupFlow: React.FC<SignupFlowProps> = ({ startAtLevel2 = false })
         .single();
 
       if (userError) {
-        console.error('Error getting user ID:', userError);
+        console.error('SignupFlow: Error getting user ID:', userError);
         throw userError;
       }
 
       if (!userProfile) {
+        console.error('SignupFlow: User profile not found');
         throw new Error('User profile not found');
       }
 
-      // Create default VisualSpace with exact schema match
-      const { error: spaceError } = await supabase
+      console.log('SignupFlow: User profile found:', userProfile);
+
+      // Create default VisualSpace
+      console.log('SignupFlow: Creating default visual space');
+      const { data: visualSpace, error: spaceError } = await supabase
         .from('visual_spaces')
         .insert([{
           title: `${data.username}'s First Space`,
           description: 'My first personal visual space',
-          user_id: parseInt(userProfile.id),
+          user_id: userProfile.id,
           created_at: new Date().toISOString(),
           last_modified: new Date().toISOString(),
           last_accessed: new Date().toISOString()
-        }]);
+        }])
+        .select()
+        .single();
 
       if (spaceError) {
-        console.error('Visual space creation error:', spaceError);
+        console.error('SignupFlow: Visual space creation error:', spaceError);
         throw spaceError;
       }
 
-      // Attendre que toutes les opérations soient terminées avant de naviguer
-      await new Promise(resolve => setTimeout(resolve, 500));
+      if (!visualSpace) {
+        console.error('SignupFlow: Failed to create visual space');
+        throw new Error('Failed to create visual space');
+      }
 
-      // Rediriger vers le visual space
-      navigate(`/space/${data.visualSpaceId}`, { replace: true });
+      console.log('SignupFlow: Visual space created successfully:', visualSpace);
+      return visualSpace;
+
     } catch (error: any) {
-      console.error('Profile update error:', error.message);
+      console.error('SignupFlow: Profile update error:', error.message);
+      throw error;
     }
   };
 

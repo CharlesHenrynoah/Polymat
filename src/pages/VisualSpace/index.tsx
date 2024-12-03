@@ -35,53 +35,79 @@ const VisualSpace: React.FC = () => {
   useEffect(() => {
     const loadVisualSpace = async () => {
       try {
+        console.log('VisualSpace: Starting to load with ID:', id);
         if (!id) {
           throw new Error('No space ID provided');
         }
 
         // Get the current user
         const { data: { user: currentUser } } = await supabase.auth.getUser();
+        console.log('VisualSpace: Current user:', currentUser);
+        
         if (!currentUser) {
+          console.log('VisualSpace: No authenticated user, redirecting to login');
           navigate('/login', { replace: true });
           return;
         }
 
         // Load the visual space
+        console.log('VisualSpace: Loading space data');
         const { data: spaceData, error: spaceError } = await supabase
           .from('visual_spaces')
           .select('*')
           .eq('id', id)
           .single();
 
-        if (spaceError) throw spaceError;
-        if (!spaceData) throw new Error('Visual space not found');
+        if (spaceError) {
+          console.error('VisualSpace: Error loading space:', spaceError);
+          throw spaceError;
+        }
+        
+        if (!spaceData) {
+          console.error('VisualSpace: No space data found');
+          throw new Error('Visual space not found');
+        }
+
+        console.log('VisualSpace: Space data loaded:', spaceData);
 
         // Load the space owner's data
+        console.log('VisualSpace: Loading owner data');
         const { data: userData, error: userError } = await supabase
           .from('users')
           .select('username, profile_image')
           .eq('id', spaceData.user_id)
           .single();
 
-        if (userError) throw userError;
-        if (!userData) throw new Error('Space owner not found');
+        if (userError) {
+          console.error('VisualSpace: Error loading user:', userError);
+          throw userError;
+        }
+        
+        if (!userData) {
+          console.error('VisualSpace: No user data found');
+          throw new Error('Space owner not found');
+        }
+
+        console.log('VisualSpace: Owner data loaded:', userData);
 
         // Update last accessed time
+        console.log('VisualSpace: Updating last accessed time');
         const { error: updateError } = await supabase
           .from('visual_spaces')
           .update({ last_accessed: new Date().toISOString() })
           .eq('id', id);
 
         if (updateError) {
-          console.error('Failed to update last_accessed:', updateError);
+          console.error('VisualSpace: Failed to update last_accessed:', updateError);
         }
 
         setSpace(spaceData);
         setUser(userData);
         setError(null);
+        console.log('VisualSpace: All data loaded successfully');
 
       } catch (err: any) {
-        console.error('Error loading visual space:', err);
+        console.error('VisualSpace: Error in loadVisualSpace:', err);
         setError(err.message);
         setSpace(null);
         setUser(null);
@@ -103,10 +129,10 @@ const VisualSpace: React.FC = () => {
         <h1 className="text-2xl font-bold mb-4">Error</h1>
         <p className="text-red-500 mb-4">{error || 'Failed to load visual space'}</p>
         <button
-          onClick={() => navigate('/', { replace: true })}
+          onClick={() => navigate('/login', { replace: true })}
           className="px-4 py-2 bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors"
         >
-          Go Home
+          Go to Login
         </button>
       </div>
     );
@@ -133,11 +159,14 @@ const VisualSpace: React.FC = () => {
         </header>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Contenu de l'espace visuel ici */}
+          <p className="text-center col-span-full text-zinc-400">
+            Your visual space is ready! Start adding content.
+          </p>
         </div>
       </div>
     </div>
   );
 };
 
+export { VisualSpace };
 export default VisualSpace;
