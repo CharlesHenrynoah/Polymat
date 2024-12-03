@@ -4,8 +4,6 @@ import { DeleteAccountModal } from '../components/Account/DeleteAccountModal';
 import { DeleteAccountReason } from '../components/Account/DeleteAccountReason';
 import { birthPlaces } from '../data/birthPlaces';
 import { sectors } from '../data/sectors';
-import { countryCodes } from '../data/countries';
-import { PhoneInput } from '../components/Account/PhoneInput';
 import { PersonalInfo } from '../components/Account/PersonalInfo';
 import { PasswordSection } from '../components/Account/PasswordSection';
 
@@ -36,8 +34,7 @@ export const MyAccount: React.FC<MyAccountProps> = ({
     sector: sectors[0],
     birthDate: '1990-01-01',
     birthPlace: birthPlaces.africa[0],
-    countryCode: countryCodes[0].code,
-    phoneNumber: '6 12 34 56 78',
+
     oldPassword: '',
     newPassword: '',
     confirmPassword: '',
@@ -67,7 +64,6 @@ export const MyAccount: React.FC<MyAccountProps> = ({
       sector: 'Industry',
       birthDate: 'Date of Birth',
       birthPlace: 'Place of Birth',
-      phoneNumber: 'Phone Number',
     };
 
     Object.entries(requiredFields).forEach(([field, label]) => {
@@ -89,18 +85,13 @@ export const MyAccount: React.FC<MyAccountProps> = ({
       }
     }
 
-    // Phone number validation
-    if (!/^\d[\d\s-]*$/.test(formData.phoneNumber)) {
-      newErrors.phoneNumber = 'Invalid phone number format';
-    }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (validateForm()) {
       // Save changes
       onSave(formData.username, formData.profileImage);
@@ -185,11 +176,10 @@ export const MyAccount: React.FC<MyAccountProps> = ({
               <button
                 onClick={handleSave}
                 disabled={!isFormValid}
-                className={`px-4 py-2 rounded-lg transition-colors ${
-                  isFormValid
+                className={`px-4 py-2 rounded-lg transition-colors ${isFormValid
                     ? 'bg-orange-500 text-white hover:bg-orange-600'
                     : 'bg-zinc-700 text-zinc-400 cursor-not-allowed'
-                }`}
+                  }`}
               >
                 Save Changes
               </button>
@@ -244,17 +234,6 @@ export const MyAccount: React.FC<MyAccountProps> = ({
                     formData={formData}
                     onChange={handleChange}
                     errors={errors}
-                  />
-                </div>
-
-                {/* Contact Info */}
-                <div className="bg-zinc-800/50 rounded-lg p-6">
-                  <h2 className="text-lg font-semibold text-white mb-6">Contact Information</h2>
-                  <PhoneInput
-                    countryCode={formData.countryCode}
-                    phoneNumber={formData.phoneNumber}
-                    onChange={handleChange}
-                    error={errors.phoneNumber}
                   />
                 </div>
               </div>

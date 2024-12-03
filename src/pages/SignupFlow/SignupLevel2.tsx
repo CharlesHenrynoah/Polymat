@@ -7,6 +7,14 @@ import './scrollbar.css';
 
 interface SignupLevel2Props {
   onBack: () => void;
+  onComplete: (data: {
+    photo?: File;
+    username: string;
+    firstName: string;
+    lastName: string;
+    description: string;
+    visualSpaceId: string;
+  }) => void;
 }
 
 interface FormData {
@@ -19,8 +27,7 @@ interface FormData {
   acceptTerms: boolean;
 }
 
-export const SignupLevel2: React.FC<SignupLevel2Props> = ({ onBack }) => {
-  const navigate = useNavigate();
+export const SignupLevel2: React.FC<SignupLevel2Props> = ({ onBack, onComplete }) => {
   const [formData, setFormData] = useState<FormData>({
     photo: undefined,
     photoPreview: '',
@@ -71,8 +78,6 @@ export const SignupLevel2: React.FC<SignupLevel2Props> = ({ onBack }) => {
         return;
       }
 
-      console.log('Starting profile creation...');
-
       // Get current authenticated user
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -80,28 +85,37 @@ export const SignupLevel2: React.FC<SignupLevel2Props> = ({ onBack }) => {
         return;
       }
 
-      console.log('User authenticated:', user.id);
-
       // Convert photo to base64 if exists
       let photoBase64 = null;
       if (formData.photo) {
         try {
           photoBase64 = await convertToBase64(formData.photo);
-          console.log('Photo converted to base64');
         } catch (error) {
           console.error('Error converting photo to base64:', error);
           throw new Error('Failed to process profile photo');
         }
       }
 
-      // Prepare user profile data with only the necessary fields
+      // Check if username already exists
+      const { data: existingUser } = await supabase
+        .from('users')
+        .select('username')
+        .eq('username', formData.username.trim())
+        .single();
+
+      if (existingUser) {
+        setError('Username already taken');
+        return;
+      }
+
+      // Prepare user profile data
       const profileData = {
         email: user.email,
         username: formData.username.trim(),
         first_name: formData.firstName.trim(),
         last_name: formData.lastName.trim(),
         description: formData.description.trim(),
-        profile_image: photoBase64, // Store base64 string directly
+        profile_image: photoBase64,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         last_login: new Date().toISOString(),
@@ -112,8 +126,6 @@ export const SignupLevel2: React.FC<SignupLevel2Props> = ({ onBack }) => {
         })
       };
 
-      console.log('Creating user profile...');
-
       // Insert user profile
       const { data: insertedProfile, error: profileError } = await supabase
         .from('users')
@@ -122,11 +134,12 @@ export const SignupLevel2: React.FC<SignupLevel2Props> = ({ onBack }) => {
         .single();
 
       if (profileError) {
-        console.error('Profile creation error:', profileError);
         throw profileError;
       }
 
-      console.log('Profile created:', insertedProfile);
+      if (!insertedProfile) {
+        throw new Error('Failed to create user profile');
+      }
 
       // Create default VisualSpace
       const { data: visualSpace, error: spaceError } = await supabase
@@ -143,21 +156,22 @@ export const SignupLevel2: React.FC<SignupLevel2Props> = ({ onBack }) => {
         .single();
 
       if (spaceError) {
-        console.error('VisualSpace creation error:', spaceError);
         throw spaceError;
       }
 
-      console.log('VisualSpace created:', visualSpace);
-
-      // Ensure we have a valid space ID
-      if (!visualSpace?.id) {
-        throw new Error('Created VisualSpace has no ID');
+      if (!visualSpace) {
+        throw new Error('Failed to create visual space');
       }
 
-      console.log('Navigating to:', `/space/${visualSpace.id}`);
-
-      // Navigate to the created VisualSpace
-      navigate(`/space/${visualSpace.id}`, { replace: true });
+      // Call onComplete with form data and visual space
+      onComplete({
+        username: formData.username,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        description: formData.description,
+        photo: formData.photo,
+        visualSpaceId: visualSpace.id
+      });
 
     } catch (error: any) {
       console.error('Error during profile creation:', error);

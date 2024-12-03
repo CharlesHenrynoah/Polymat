@@ -12,14 +12,18 @@ export const SignupFlow: React.FC<SignupFlowProps> = ({ startAtLevel2 = false })
   const [level, setLevel] = useState(startAtLevel2 ? 2 : 1);
   const navigate = useNavigate();
 
-  const handleLevel1Complete = async (data: any) => {
+  const handleLevel1Complete = async (data: {
+    email: string;
+    password: string;
+    googleAuth?: boolean;
+  }) => {
     if (data.googleAuth) {
       setLevel(2);
       return;
     }
 
     try {
-      const { data: authData, error: signUpError } = await supabase.auth.signUp({
+      const { error: signUpError } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
       });
@@ -42,63 +46,85 @@ export const SignupFlow: React.FC<SignupFlowProps> = ({ startAtLevel2 = false })
       }
 
       // Check if username exists for other users
-      const { data: existingUser, error: checkError } = await supabase
+      const { data: existingUser } = await supabase
         .from('users')
         .select('username')
         .eq('username', data.username)
         .neq('id', user.id)
-        .maybeSingle();
+        .single();
 
       if (existingUser) {
         console.error('Username already exists');
         return;
       }
 
-      // Convert photo to base64 if provided
-      let base64Image = null;
-      if (data.photo) {
-        const reader = new FileReader();
-        base64Image = await new Promise((resolve) => {
-          reader.onload = (e) => resolve(e.target?.result);
-          reader.readAsDataURL(data.photo);
-        });
-      }
-
       // Prepare user data
       const userData = {
-        id: user.id,
         email: user.email,
         username: data.username,
         first_name: data.firstName,
         last_name: data.lastName,
         description: data.description,
-        sector: data.sector,
-        gender: data.gender,
-        birth_date: data.birthDate,
-        birth_place: data.birthPlace,
-        phone_number: data.phoneNumber,
-        country_code: data.countryCode,
-        profile_image: base64Image,
+        profile_image: data.photo,
+        created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
+        last_login: new Date().toISOString(),
         is_active: true,
-        role: 'user'
+        role: 'user',
+        preferences: JSON.stringify({
+          terms_accepted: true
+        })
       };
 
-      // Update or create user profile using upsert
-      const { error: upsertError } = await supabase
+      // Update user profile instead of insert
+      const { error: updateError } = await supabase
         .from('users')
-        .upsert(userData, {
-          onConflict: 'id',
-          ignoreDuplicates: false
-        });
+        .update(userData)
+        .eq('email', user.email);
 
-      if (upsertError) {
-        console.error('User update error:', upsertError);
-        throw upsertError;
+      if (updateError) {
+        console.error('User update error:', updateError);
+        throw updateError;
       }
 
-      // Redirect to the user's space
-      navigate(`/${data.username}`, { replace: true });
+      // Get the user's numeric ID
+      const { data: userProfile, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', user.email)
+        .single();
+
+      if (userError) {
+        console.error('Error getting user ID:', userError);
+        throw userError;
+      }
+
+      if (!userProfile) {
+        throw new Error('User profile not found');
+      }
+
+      // Create default VisualSpace with exact schema match
+      const { error: spaceError } = await supabase
+        .from('visual_spaces')
+        .insert([{
+          title: `${data.username}'s First Space`,
+          description: 'My first personal visual space',
+          user_id: parseInt(userProfile.id),
+          created_at: new Date().toISOString(),
+          last_modified: new Date().toISOString(),
+          last_accessed: new Date().toISOString()
+        }]);
+
+      if (spaceError) {
+        console.error('Visual space creation error:', spaceError);
+        throw spaceError;
+      }
+
+      // Attendre que toutes les opérations soient terminées avant de naviguer
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Rediriger vers le visual space
+      navigate(`/space/${data.visualSpaceId}`, { replace: true });
     } catch (error: any) {
       console.error('Profile update error:', error.message);
     }
@@ -110,7 +136,7 @@ export const SignupFlow: React.FC<SignupFlowProps> = ({ startAtLevel2 = false })
   };
 
   return level === 1 ? (
-    <SignupLevel1 onComplete={handleLevel1Complete} />
+    <SignupLevel1 onNext={handleLevel1Complete} onBack={() => navigate('/')} />
   ) : (
     <SignupLevel2 onComplete={handleLevel2Complete} onBack={handleBack} />
   );

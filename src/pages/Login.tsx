@@ -28,7 +28,7 @@ export const Login: React.FC = () => {
       setError(null);
       setIsLoading(true);
 
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           queryParams: {
@@ -88,7 +88,7 @@ export const Login: React.FC = () => {
               .single();
 
             if (createError) throw createError;
-            
+
             // Rediriger vers le nouveau VisualSpace
             navigate(`/space/${newSpace.id}`);
           } else {
@@ -150,7 +150,7 @@ export const Login: React.FC = () => {
           .single();
 
         if (createError) throw createError;
-        
+
         // Rediriger vers le nouveau VisualSpace
         navigate(`/space/${newSpace.id}`);
       } else {
